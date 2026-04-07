@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>스톡허브 개인정보처리방침</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif;
+      background: #f5f5f5;
+      color: #1a1a1a;
+      line-height: 1.8;
+    }
+    .container {
+      max-width: 760px;
+      margin: 0 auto;
+      background: #fff;
+      padding: 48px 40px;
+    }
+    header {
+      border-bottom: 2px solid #1a73e8;
+      padding-bottom: 20px;
+      margin-bottom: 36px;
+    }
+    header h1 {
+      font-size: 24px;
+      font-weight: 700;
+      color: #1a73e8;
+    }
+    header p {
+      font-size: 13px;
+      color: #666;
+      margin-top: 6px;
+    }
+    h2 {
+      font-size: 16px;
+      font-weight: 700;
+      margin: 32px 0 12px;
+      color: #1a1a1a;
+      padding-left: 10px;
+      border-left: 3px solid #1a73e8;
+    }
+    h3 {
+      font-size: 14px;
+      font-weight: 600;
+      margin: 16px 0 8px;
+      color: #333;
+    }
+    p, li {
+      font-size: 14px;
+      color: #444;
+    }
+    ul {
+      padding-left: 20px;
+      margin: 8px 0;
+    }
+    li { margin-bottom: 6px; }
+    .highlight {
+      background: #f0f7ff;
+      border-radius: 8px;
+      padding: 14px 18px;
+      margin: 12px 0;
+      font-size: 13px;
+      color: #333;
+    }
+    a { color: #1a73e8; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .contact {
+      background: #fafafa;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 16px 20px;
+      margin-top: 12px;
+      font-size: 14px;
+    }
+    footer {
+      margin-top: 48px;
+      padding-top: 20px;
+      border-top: 1px solid #eee;
+      font-size: 12px;
+      color: #999;
+      text-align: center;
+    }
+    @media (max-width: 600px) {
+      .container { padding: 28px 20px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>스톡허브(StockHub) 개인정보처리방침</h1>
+      <p>최종 업데이트: 2026년 4월 7일</p>
+    </header>
+
+    <h2>1. 개요</h2>
+    <p>스톡허브(이하 "앱")는 주식·금융 뉴스 및 시장 동향을 제공하는 서비스입니다. 본 방침은 앱이 수집하는 정보, 사용 목적, 보관 방법을 설명합니다.</p>
+
+    <h2>2. 수집하는 정보</h2>
+    <h3>가. 앱이 직접 수집하는 정보</h3>
+    <ul>
+      <li>관심 키워드, 지역, 알림 레벨, 다크모드 등 사용자가 직접 입력한 설정값</li>
+      <li>북마크한 뉴스 기사 목록</li>
+      <li>읽은 알림 내역</li>
+    </ul>
+    <div class="highlight">
+      이 데이터는 오직 기기 내부(로컬 저장소)에만 저장되며, 외부 서버로 전송되지 않습니다.
+    </div>
+
+    <h3>나. 제3자 SDK가 수집하는 정보</h3>
+    <ul>
+      <li>
+        <strong>Google AdMob</strong>: 맞춤 광고 제공을 위해 광고 식별자(GAID/IDFA), 기기 정보, 앱 사용 패턴을 수집할 수 있습니다.<br>
+        → <a href="https://policies.google.com/privacy" target="_blank">Google 개인정보처리방침</a>
+      </li>
+    </ul>
+
+    <h2>3. 인터넷 권한 및 외부 API 사용</h2>
+    <p>앱은 다음 외부 서비스에 네트워크 요청을 보냅니다.</p>
+    <ul>
+      <li>네이버 검색 API — 뉴스 기사 수집</li>
+      <li>NewsAPI — 글로벌 금융 뉴스</li>
+      <li>Yahoo Finance — 실시간 시장 지수</li>
+      <li>KRX Open API — 국내 상장 종목 목록</li>
+      <li>Google Gemini API — AI 시장 요약</li>
+    </ul>
+    <p style="margin-top:8px;">이 과정에서 기기의 IP 주소가 각 서비스 서버에 전달될 수 있습니다. 앱은 사용자를 식별하기 위한 어떠한 정보도 해당 서버에 전송하지 않습니다.</p>
+
+    <h2>4. 권한 사용 목적</h2>
+    <ul>
+      <li><strong>인터넷(INTERNET)</strong>: 뉴스 및 시장 데이터 수신</li>
+      <li><strong>네트워크 상태(ACCESS_NETWORK_STATE)</strong>: 오프라인 여부 감지</li>
+      <li><strong>알림 전송(POST_NOTIFICATIONS, Android 13+)</strong>: 속보 및 시장 급변 알림 발송</li>
+      <li><strong>부팅 완료 수신(RECEIVE_BOOT_COMPLETED)</strong>: 기기 재시작 후 백그라운드 뉴스 체크 작업 재등록</li>
+      <li><strong>배터리 최적화 제외(REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)</strong>: 15분 주기 백그라운드 알림의 안정적 동작 (사용자 동의 시에만 적용)</li>
+    </ul>
+
+    <h2>5. 광고</h2>
+    <p>앱은 Google AdMob을 통해 배너 광고, 전면 광고, 앱 오픈 광고를 표시합니다. iOS 14 이상에서는 앱 추적 투명성(ATT) 동의 요청이 표시될 수 있으며, 동의를 거부해도 앱 사용에는 지장이 없습니다(비맞춤 광고로 표시됩니다).</p>
+
+    <h2>6. 데이터 보관 및 삭제</h2>
+    <p>앱이 로컬에 저장한 모든 데이터(설정, 북마크, 알림 내역)는 앱을 삭제하면 완전히 제거됩니다. 별도의 계정이나 서버 저장소를 사용하지 않으므로 추가 삭제 절차가 없습니다.</p>
+
+    <h2>7. 아동 개인정보 보호</h2>
+    <p>이 앱은 만 14세 미만 아동을 대상으로 하지 않으며, 아동의 개인정보를 의도적으로 수집하지 않습니다.</p>
+
+    <h2>8. 개인정보처리방침 변경</h2>
+    <p>방침이 변경될 경우 이 페이지의 "최종 업데이트" 날짜를 갱신합니다. 중요한 변경 사항은 앱 내 알림으로 안내할 수 있습니다.</p>
+
+    <h2>9. 문의</h2>
+    <p>개인정보 처리에 관한 문의는 아래로 연락해 주세요.</p>
+    <div class="contact">
+      📧 이메일: <a href="mailto:imchic8@gmail.com">imchic8@gmail.com</a>
+    </div>
+
+    <footer>
+      <p>© 2026 StockHub. All rights reserved.</p>
+    </footer>
+  </div>
+</body>
+</html>
