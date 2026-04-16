@@ -1,0 +1,41 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "stock_hub (debug)",
+            "request": "launch",
+            "type": "dart",
+            "args": [
+                "--dart-define-from-file=env.json"
+            ]
+        },
+        {
+            "name": "stock_hub (release)",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "release",
+            "args": [
+                "--dart-define-from-file=env.json"
+            ]
+        },
+        {
+            "name": "stock_hub iOS (debug)",
+            "request": "launch",
+            "type": "dart",
+            "flutterPlatform": "ios",
+            "args": [
+                "--dart-define-from-file=env.json"
+            ]
+        },
+        {
+            "name": "stock_hub iOS (release)",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "release",
+            "flutterPlatform": "ios",
+            "args": [
+                "--dart-define-from-file=env.json"
+            ]
+        }
+    ]
+}

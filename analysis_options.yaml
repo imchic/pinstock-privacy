@@ -1,0 +1,45 @@
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  errors:
+    missing_required_param: error
+    missing_return: error
+    dead_code: warning
+  exclude:
+    - "**/*.g.dart"
+    - "**/*.freezed.dart"
+    - "build/**"
+
+linter:
+  rules:
+    # --- 코드 스타일 ---
+    prefer_single_quotes: true
+    prefer_const_constructors: true
+    prefer_const_declarations: true
+    prefer_const_literals_to_create_immutables: true
+    prefer_final_locals: true
+    prefer_final_fields: true
+
+    # --- 안전성 ---
+    avoid_print: true
+    avoid_dynamic_calls: false
+    avoid_returning_null_for_future: true
+    cancel_subscriptions: true
+    close_sinks: true
+    unawaited_futures: true
+
+    # --- Flutter 위젯 ---
+    use_key_in_widget_constructors: true
+    sized_box_for_whitespace: true
+    sized_box_shrink_expand: true
+
+    # --- 타입 ---
+    always_declare_return_types: true
+    avoid_redundant_argument_values: true
+    avoid_unnecessary_containers: true
+
+    # --- 불필요 코드 제거 ---
+    no_duplicate_case_values: true
+    avoid_void_async: true
+    unnecessary_null_checks: true
+    unnecessary_nullable_for_final_variable_declarations: true

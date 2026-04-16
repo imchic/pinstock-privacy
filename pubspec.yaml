@@ -1,0 +1,123 @@
+name: stock_hub
+description: "실시간 시장 속보, 키워드 알림, 장 시작/마감 알림을 제공하는 주식 뉴스 앱"
+
+# 내부 배포용 앱이라 pub.dev 공개 배포는 비활성화합니다.
+publish_to: 'none'
+
+# 앱 버전: build-name+build-number 형식
+# Android: versionName/versionCode, iOS: CFBundleShortVersionString/CFBundleVersion
+version: 1.0.0+13
+
+environment:
+  sdk: ^3.9.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Cupertino Icons
+  cupertino_icons: ^1.0.8
+
+  # State Management
+  flutter_riverpod: ^2.6.0
+  riverpod: ^2.6.0
+
+  # Networking
+  http: ^1.2.0
+  dio: ^5.4.0
+  html: ^0.15.4
+
+  # Data & Serialization
+  json_annotation: ^4.8.0
+
+  # Utilities
+  intl: ^0.20.0
+  timeago: ^3.6.0
+  translator: ^1.0.4+1
+  uuid: ^4.1.0
+  shared_preferences: ^2.2.2
+
+  # UI Components
+  fl_chart: ^0.71.0
+  cached_network_image: ^3.3.0
+  webview_flutter: ^4.8.0
+  shimmer: ^3.0.0
+  url_launcher: ^6.3.1
+
+  # Firebase (현재 미사용)
+  # firebase_core: ^2.24.0
+  # firebase_messaging: ^14.8.0
+  # cloud_firestore: ^4.14.0
+
+  # Connectivity
+  connectivity_plus: ^6.0.0
+
+  # Local Push Notifications
+  flutter_local_notifications: ^18.0.0
+  timezone: ^0.9.0
+  share_plus: ^12.0.1
+
+  # Background Tasks
+  workmanager: ^0.9.0
+  permission_handler: ^11.3.0
+
+  # Google AdMob
+  google_mobile_ads: ^5.1.0
+  cookie_jar: ^4.0.9
+  dio_cookie_manager: ^3.4.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^5.0.0
+  build_runner: ^2.4.0
+  json_serializable: ^6.7.0
+  riverpod_generator: ^2.6.0
+  flutter_launcher_icons: ^0.14.3
+  flutter_native_splash: ^2.4.3
+
+flutter:
+  uses-material-design: true
+
+  # 앱 이미지 및 폰트 리소스
+  assets:
+    - assets/image/
+    - assets/fonts/
+
+  fonts:
+
+    - family: Pretendard
+      fonts:
+        - asset: assets/fonts/pretendard/Pretendard-Black.ttf
+          weight: 900
+        - asset: assets/fonts/pretendard/Pretendard-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/pretendard/Pretendard-ExtraBold.ttf
+          weight: 800
+        - asset: assets/fonts/pretendard/Pretendard-ExtraLight.ttf
+          weight: 200
+        - asset: assets/fonts/pretendard/Pretendard-Light.ttf
+          weight: 300
+        - asset: assets/fonts/pretendard/Pretendard-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/pretendard/Pretendard-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/pretendard/Pretendard-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/pretendard/Pretendard-Thin.ttf
+          weight: 100
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/image/stockhub_logo.png"
+  min_sdk_android: 21
+  adaptive_icon_background: "#000000"
+  adaptive_icon_foreground: "assets/image/stockhub_logo.png"
+  web:
+    generate: false
+  windows:
+    generate: false
+  macos:
+    generate: false

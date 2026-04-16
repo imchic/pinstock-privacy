@@ -1,0 +1,660 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../config/index.dart';
+import '../../../data/models/index.dart';
+import '../../../features/alerts/views/alerts_screen.dart';
+import '../../../features/feed/views/feed_screen.dart';
+import '../../../features/finance/views/finance_screen.dart';
+import '../../../features/settings/views/settings_screen.dart';
+import '../../../features/trends/views/trends_screen.dart';
+import '../../../providers/index.dart';
+
+/// 홈 화면
+class HomeScreen extends ConsumerStatefulWidget {
+  const HomeScreen({super.key});
+
+  @override
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends ConsumerState<HomeScreen> {
+  int _selectedTabIndex = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.bg,
+      body: CustomScrollView(
+        slivers: [
+          // 다크 AppBar
+          SliverAppBar(
+            expandedHeight: 90,
+            floating: true,
+            pinned: true,
+            elevation: 0,
+            scrolledUnderElevation: 0,
+            backgroundColor: AppColors.bg,
+            flexibleSpace: FlexibleSpaceBar(
+              background: Container(
+                decoration: BoxDecoration(
+                  color: AppColors.bg,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withAlpha(30),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              AppColors.accent.withAlpha(220),
+                              AppColors.accent.withAlpha(180),
+                            ],
+                          ),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          'StockHub',
+                          style: TextStyle(
+                            color: AppColors.textPrimary,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '실시간 금융 미디어',
+                        style: TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          // 바디
+          SliverFillRemaining(
+            child: _buildBody(),
+          ),
+        ],
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _selectedTabIndex,
+        onTap: (index) {
+          setState(() {
+            _selectedTabIndex = index;
+          });
+        },
+        type: BottomNavigationBarType.fixed,
+        backgroundColor: AppColors.surface,
+        selectedItemColor: AppColors.accent,
+        unselectedItemColor: AppColors.textSecondary,
+        elevation: 8,
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home),
+            label: '홈',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.feed),
+            label: '피드',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.trending_up),
+            label: '금융',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.analytics),
+            label: '트렌드',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.notifications),
+            label: '알림',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.settings),
+            label: '설정',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBody() {
+    switch (_selectedTabIndex) {
+      case 0:
+        return const HomeDashboard();
+      case 1:
+        return const FeedScreen();
+      case 2:
+        return const FinanceScreen();
+      case 3:
+        return const TrendsScreen();
+      case 4:
+        return const AlertsScreen();
+      case 5:
+        return const SettingsScreen();
+      default:
+        return const HomeDashboard();
+    }
+  }
+}
+
+/// 홈 대시보드
+class HomeDashboard extends ConsumerWidget {
+  const HomeDashboard({super.key});
+
+  /// 시장 상황 계산
+  String _getMarketStatus(List<News> newsList) {
+    if (newsList.isEmpty) return '데이터 부족';
+    
+    double avgSentiment = newsList.fold(0.0, (sum, news) => sum + news.sentimentScore) / newsList.length;
+    
+    if (avgSentiment > 0.3) return '강세장';
+    if (avgSentiment < -0.3) return '약세장';
+    return '관망';
+  }
+
+  /// 시장 상황 색상
+  Color _getMarketStatusColor(String status) {
+    if (status == '강세장') return AppColors.green;
+    if (status == '약세장') return AppColors.red;
+    return AppColors.accent;
+  }
+
+  /// 센티멘트 라벨
+  String _getSentimentLabel(double score) {
+    if (score > 0.5) return '강한 호재';
+    if (score > 0.1) return '호재';
+    if (score < -0.5) return '강한 악재';
+    if (score < -0.1) return '악재';
+    return '중립';
+  }
+
+  /// 센티멘트 색상
+  Color _getSentimentColor(double score) {
+    if (score > 0.1) return AppColors.green;
+    if (score < -0.1) return AppColors.red;
+    return AppColors.accent;
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final newsAsync = ref.watch(newsListProvider);
+    final trendsAsync = ref.watch(topTrendingKeywordsProvider);
+    final unreadCountAsync = ref.watch(unreadAlertCountProvider);
+
+    return RefreshIndicator(
+      color: AppColors.accent,
+      backgroundColor: AppColors.surface,
+      onRefresh: () async {
+        ref.invalidate(newsListProvider);
+        ref.invalidate(topTrendingKeywordsProvider);
+      },
+      child: ListView(
+        padding: const EdgeInsets.all(8),
+        children: [
+          // 뉴스 데이터 로드
+          newsAsync.when(
+            data: (newsList) {
+              final marketStatus = newsList.isNotEmpty ? _getMarketStatus(newsList) : '관망';
+              final statusColor = _getMarketStatusColor(marketStatus);
+              
+              return Column(
+                children: [
+                  // 1️⃣ 시장 상황
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [statusColor.withAlpha(120), statusColor.withAlpha(80)],
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: statusColor.withAlpha(150), width: 1),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          marketStatus == '강세장' ? Icons.trending_up : marketStatus == '약세장' ? Icons.trending_down : Icons.remove,
+                          color: statusColor,
+                          size: 24,
+                        ),
+                        const SizedBox(width: 8),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('오늘의 시장', style: TextStyle(color: AppColors.textSecondary, fontSize: 11, fontWeight: FontWeight.w500)),
+                            const SizedBox(height: 2),
+                            Text(marketStatus, style: TextStyle(color: statusColor, fontSize: 16, fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+
+                  // 2️⃣ TOP 1 뉴스
+                  if (newsList.isNotEmpty) ...[
+                    Text('핵심 뉴스', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: AppColors.textSecondary)),
+                    const SizedBox(height: 8),
+                    _HeroNewsCard(
+                      news: newsList[0],
+                      getSentimentLabel: _getSentimentLabel,
+                      getSentimentColor: _getSentimentColor,
+                    ),
+                    const SizedBox(height: 6),
+                  ],
+
+                  // 3️⃣ 추가 뉴스
+                  if (newsList.length > 1) ...[
+                    Text('추가 뉴스', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: AppColors.textSecondary)),
+                    const SizedBox(height: 8),
+                    ...newsList.skip(1).take(3).map((news) {
+                      return _NewsCard(
+                        news: news,
+                        getSentimentLabel: _getSentimentLabel,
+                        getSentimentColor: _getSentimentColor,
+                      );
+                    }),
+                    const SizedBox(height: 8),
+                  ],
+                ],
+              );
+            },
+            loading: () => const SizedBox.shrink(),
+            error: (error, stack) => const SizedBox.shrink(),
+          ),
+
+          // 4️⃣ 주요 키워드
+          trendsAsync.when(
+            data: (keywords) {
+              if (keywords.isEmpty) return const SizedBox.shrink();
+
+              return Column(
+                children: [
+                  Container(
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.border, width: 1),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.accent.withAlpha(10),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('주요 키워드 추세', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: AppColors.textPrimary)),
+                        const SizedBox(height: 6),
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: keywords.take(5).map((keyword) {
+                            return _KeywordBadge(keyword: keyword);
+                          }).toList(),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                ],
+              );
+            },
+            loading: () => const SizedBox.shrink(),
+            error: (error, stack) => const SizedBox.shrink(),
+          ),
+
+          // 5️⃣ 알림 요약
+          unreadCountAsync.when(
+            data: (count) {
+              if (count == 0) return const SizedBox.shrink();
+
+              return Container(
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.accent.withAlpha(100)),
+                  boxShadow: [BoxShadow(color: AppColors.accent.withAlpha(10), blurRadius: 8)],
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: AppColors.accent.withAlpha(100),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Icon(Icons.notifications_active, color: AppColors.accent, size: 18),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('읽지 않은 알림', style: TextStyle(color: AppColors.textSecondary, fontSize: 11)),
+                            Text('$count개', style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 14)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+            loading: () => const SizedBox.shrink(),
+            error: (error, stack) => const SizedBox.shrink(),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 뉴스 카드 위젯
+class _NewsCard extends ConsumerWidget {
+  final News news;
+  final String Function(double) getSentimentLabel;
+  final Color Function(double) getSentimentColor;
+
+  const _NewsCard({
+    required this.news,
+    required this.getSentimentLabel,
+    required this.getSentimentColor,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final sentimentColor = getSentimentColor(news.sentimentScore);
+    final sentimentLabel = getSentimentLabel(news.sentimentScore);
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () {},
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 4),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.border.withAlpha(100), width: 1),
+            boxShadow: [
+              BoxShadow(
+                color: sentimentColor.withAlpha(15),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(6),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 헤더 (소스 + 센티멘트 배지)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        news.source,
+                        style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: sentimentColor.withAlpha(120),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        sentimentLabel,
+                        style: TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                // 제목
+                Text(
+                  news.title,
+                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 11, color: AppColors.textPrimary, height: 1.25),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                // 설명
+                Text(
+                  news.description,
+                  style: TextStyle(fontSize: 9, color: AppColors.textSecondary, height: 1.2),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 강조된 TOP 1 뉴스 카드
+class _HeroNewsCard extends ConsumerWidget {
+  final News news;
+  final String Function(double) getSentimentLabel;
+  final Color Function(double) getSentimentColor;
+
+  const _HeroNewsCard({
+    required this.news,
+    required this.getSentimentLabel,
+    required this.getSentimentColor,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final sentimentColor = getSentimentColor(news.sentimentScore);
+    final sentimentLabel = getSentimentLabel(news.sentimentScore);
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () {},
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                AppColors.surface,
+                AppColors.surface.withAlpha(200),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: sentimentColor.withAlpha(150), width: 2),
+            boxShadow: [
+              BoxShadow(
+                color: sentimentColor.withAlpha(25),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 벰프 (소스 + 센티멘트 큰 배지)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: AppColors.accent.withAlpha(120),
+                        borderRadius: BorderRadius.circular(5),
+                      ),
+                      child: Text(
+                        news.source,
+                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.accent),
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: sentimentColor.withAlpha(150),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            news.sentimentScore > 0 ? Icons.trending_up : Icons.trending_down,
+                            color: Colors.white,
+                            size: 14,
+                          ),
+                          const SizedBox(width: 3),
+                          Text(
+                            sentimentLabel,
+                            style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                // 제목 (크게)
+                Text(
+                  news.title,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 15,
+                    color: AppColors.textPrimary,
+                    height: 1.3,
+                  ),
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 8),
+                // 설명
+                Text(
+                  news.description,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: AppColors.textSecondary,
+                    height: 1.3,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                if (news.keywords.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 4,
+                    runSpacing: 4,
+                    children: news.keywords.take(3).map((keyword) {
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: sentimentColor.withAlpha(100),
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: sentimentColor.withAlpha(150), width: 1),
+                        ),
+                        child: Text(
+                          keyword,
+                          style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 키워드 배지 위젯
+class _KeywordBadge extends ConsumerWidget {
+  final Keyword keyword;
+
+  const _KeywordBadge({required this.keyword});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppTheme.getRiskLevelColor(keyword.riskLevel)
+                .withAlpha(250),
+            AppTheme.getRiskLevelColor(keyword.riskLevel)
+                .withAlpha(200),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.getRiskLevelColor(keyword.riskLevel)
+                .withAlpha(30),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            keyword.name,
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+          ),
+          Text(
+            keyword.getChangeText(),
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: keyword.changeRate > 0 ? Colors.red : Colors.green,
+                ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
