@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>StockHub 공식 안내</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif;
+      color: #102038;
+      background:
+        radial-gradient(circle at top left, rgba(42, 157, 143, 0.12), transparent 28%),
+        linear-gradient(180deg, #f4f8fb 0%, #ffffff 42%, #eef6ff 100%);
+      line-height: 1.7;
+    }
+    .container {
+      max-width: 920px;
+      margin: 0 auto;
+      padding: 32px 20px 56px;
+    }
+    .hero {
+      background: rgba(255, 255, 255, 0.88);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(16, 32, 56, 0.08);
+      border-radius: 28px;
+      padding: 28px;
+      box-shadow: 0 18px 50px rgba(16, 32, 56, 0.08);
+    }
+    .eyebrow {
+      display: inline-flex;
+      padding: 7px 12px;
+      border-radius: 999px;
+      background: #e6f6f1;
+      color: #117864;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+    h1 {
+      margin: 16px 0 10px;
+      font-size: clamp(30px, 5vw, 46px);
+      line-height: 1.18;
+      letter-spacing: -0.04em;
+    }
+    .lead {
+      margin: 0;
+      font-size: 16px;
+      color: #43556f;
+      max-width: 720px;
+    }
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 22px;
+    }
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 12px 18px;
+      border-radius: 14px;
+      text-decoration: none;
+      font-weight: 700;
+      font-size: 14px;
+    }
+    .button.primary {
+      background: #102038;
+      color: #fff;
+    }
+    .button.secondary {
+      background: #edf4fb;
+      color: #102038;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 16px;
+      margin-top: 20px;
+    }
+    .card {
+      background: rgba(255, 255, 255, 0.92);
+      border: 1px solid rgba(16, 32, 56, 0.08);
+      border-radius: 22px;
+      padding: 22px;
+      box-shadow: 0 12px 30px rgba(16, 32, 56, 0.06);
+    }
+    .card h2 {
+      margin: 0 0 12px;
+      font-size: 18px;
+    }
+    .meta {
+      margin: 0;
+      color: #5b6b80;
+      font-size: 14px;
+    }
+    .section {
+      margin-top: 18px;
+    }
+    ul {
+      margin: 0;
+      padding-left: 18px;
+      color: #334155;
+      font-size: 14px;
+    }
+    li + li {
+      margin-top: 8px;
+    }
+    .contact-box {
+      margin-top: 12px;
+      padding: 14px 16px;
+      background: #f7fbff;
+      border: 1px solid #dbe8f6;
+      border-radius: 16px;
+      font-size: 14px;
+    }
+    a {
+      color: #0b63ce;
+    }
+    footer {
+      margin-top: 28px;
+      color: #607086;
+      font-size: 13px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <section class="hero">
+      <span class="eyebrow">StockHub Official Information</span>
+      <h1>스톡허브 공식 안내 및 문의 페이지</h1>
+      <p class="lead">
+        스톡허브는 실시간 주식 뉴스, 금융 시장 동향, 키워드 알림을 제공하는 모바일 앱입니다.
+        이 페이지는 Google Play 뉴스 및 잡지 정책에 따라 운영 정보, 연락처, 뉴스 출처 안내를 제공합니다.
+      </p>
+      <div class="actions">
+        <a class="button primary" href="contact.html">문의하기</a>
+        <a class="button secondary" href="privacy_policy.html">개인정보처리방침</a>
+      </div>
+    </section>
+
+    <section class="grid">
+      <article class="card">
+        <h2>운영 정보</h2>
+        <p class="meta">서비스명: StockHub</p>
+        <p class="meta">운영 주체: StockHub 운영팀</p>
+        <p class="meta">최종 업데이트: 2026년 4월 10일</p>
+      </article>
+
+      <article class="card">
+        <h2>문의하기</h2>
+        <div class="contact-box">
+          <div>이메일: <a href="mailto:imchic8@gmail.com">imchic8@gmail.com</a></div>
+          <div>응답 시간: 평일 10:00 - 18:00 (KST)</div>
+        </div>
+        <p class="meta section">앱 관련 문의, 정책 문의, 오류 신고는 위 이메일로 접수해 주세요.</p>
+      </article>
+
+      <article class="card">
+        <h2>뉴스 출처 및 콘텐츠 안내</h2>
+        <ul>
+          <li>국내 뉴스는 네이버 검색 API를 통해 수집합니다.</li>
+          <li>글로벌 금융 뉴스는 NewsAPI를 보조적으로 사용합니다.</li>
+          <li>시장 지수와 종목 데이터는 Yahoo Finance 및 KRX Open API를 활용합니다.</li>
+          <li>각 기사 화면에는 언론사명과 발행 시각을 함께 제공합니다.</li>
+          <li>앱은 최신 금융 뉴스와 시장 데이터를 주기적으로 갱신합니다.</li>
+        </ul>
+      </article>
+    </section>
+
+    <footer>
+      StockHub 공식 안내 페이지. Google Play 스토어 등록정보와 뉴스 선언 양식에는 이 페이지 또는 contact.html을 사용하세요.
+    </footer>
+  </div>
+</body>
+</html>
