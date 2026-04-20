@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "com.example" "\0"
-            VALUE "FileDescription", "stock_hub" "\0"
+            VALUE "FileDescription", "PinStock" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "stock_hub" "\0"
+            VALUE "InternalName", "pinstock" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2026 com.example. All rights reserved." "\0"
-            VALUE "OriginalFilename", "stock_hub.exe" "\0"
-            VALUE "ProductName", "stock_hub" "\0"
+            VALUE "OriginalFilename", "pinstock.exe" "\0"
+            VALUE "ProductName", "PinStock" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

@@ -1,4 +1,4 @@
-name: stock_hub
+name: pinstock
 description: "실시간 시장 속보, 키워드 알림, 장 시작/마감 알림을 제공하는 주식 뉴스 앱"
 
 # 내부 배포용 앱이라 pub.dev 공개 배포는 비활성화합니다.
@@ -6,7 +6,7 @@ publish_to: 'none'
 
 # 앱 버전: build-name+build-number 형식
 # Android: versionName/versionCode, iOS: CFBundleShortVersionString/CFBundleVersion
-version: 1.0.0+13
+version: 1.0.0+16
 
 environment:
   sdk: ^3.9.2
@@ -36,6 +36,8 @@ dependencies:
   translator: ^1.0.4+1
   uuid: ^4.1.0
   shared_preferences: ^2.2.2
+  package_info_plus: ^8.0.2
+  in_app_update: ^4.2.3
 
   # UI Components
   fl_chart: ^0.71.0
@@ -111,10 +113,10 @@ flutter:
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: "assets/image/stockhub_logo.png"
+  image_path: "assets/image/logo.png"
   min_sdk_android: 21
   adaptive_icon_background: "#000000"
-  adaptive_icon_foreground: "assets/image/stockhub_logo.png"
+  adaptive_icon_foreground: "assets/image/pinstock_logo.png"
   web:
     generate: false
   windows:

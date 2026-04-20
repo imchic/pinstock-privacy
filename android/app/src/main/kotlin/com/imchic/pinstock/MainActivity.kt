@@ -1,4 +1,4 @@
-package com.imchic.stockhub
+package com.imchic.pinstock
 
 import android.app.AlarmManager
 import android.app.PendingIntent
@@ -30,7 +30,7 @@ class MainActivity : FlutterActivity() {
 
 		MethodChannel(
 			flutterEngine.dartExecutor.binaryMessenger,
-			"com.imchic.stockhub/notification_cache"
+			"com.imchic.pinstock/notification_cache"
 		).setMethodCallHandler { call, result ->
 			when (call.method) {
 				"clearScheduledNotificationsCache" -> {

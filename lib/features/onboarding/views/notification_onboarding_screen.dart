@@ -100,7 +100,7 @@ class _NotificationOnboardingScreenState
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      'Stock Hub는 속보, 급등락, 관심 키워드 소식을 보낼 때만 알림 권한을 사용합니다. 아래 버튼을 눌렀을 때만 시스템 권한 창이 열립니다.',
+                      'PinStock은 속보, 급등락, 관심 키워드 소식을 보낼 때만 알림 권한을 사용합니다. 아래 버튼을 눌렀을 때만 시스템 권한 창이 열립니다.',
                       style: TextStyle(
                         color: context.colors.textSecondary,
                         fontSize: 14,

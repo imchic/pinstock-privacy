@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import '../../config/constants.dart';
+import '../../utils/text_sanitizer.dart';
 import '../models/index.dart';
 import 'api_rate_limiter.dart';
 
@@ -270,8 +271,10 @@ class FinanceApiService {
     String query,
     String category,
   ) {
-    final title = article['title'] as String? ?? '';
-    final description = article['description'] as String? ?? '';
+    final title = sanitizeHtmlText(article['title'] as String? ?? '');
+    final description = sanitizeHtmlText(
+      article['description'] as String? ?? '',
+    );
     final url = article['url'] as String?;
     final image = article['urlToImage'] as String?;
     final rawSource = (article['source'] as Map?)?['name'] as String? ?? '';

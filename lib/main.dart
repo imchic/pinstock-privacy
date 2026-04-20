@@ -40,11 +40,11 @@ void main() async {
     enabled: notificationsEnabled && isNotificationOnboardingSeen,
   );
 
-  runApp(const ProviderScope(child: StockHubApp()));
+  runApp(const ProviderScope(child: PinStockApp()));
 }
 
-class StockHubApp extends ConsumerWidget {
-  const StockHubApp({super.key});
+class PinStockApp extends ConsumerWidget {
+  const PinStockApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

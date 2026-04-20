@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import '../../config/constants.dart';
+import '../../utils/text_sanitizer.dart';
 import '../models/index.dart';
 import 'api_rate_limiter.dart';
 
@@ -149,14 +150,19 @@ class ApiService {
   /// NewsAPI 기사를 News 모델로 변환
   News _parseNews(Map<String, dynamic> article, String searchQuery) {
     final now = DateTime.now();
+    final title = sanitizeHtmlText(article['title'] as String? ?? '제목 없음');
+    final description = sanitizeHtmlText(
+      article['description'] as String? ?? '',
+    );
+    final content = sanitizeHtmlText(article['content'] as String? ?? '');
     final keywords = _extractKeywords(article, searchQuery);
     final regions = _detectRegions(article);
 
     return News(
       id: article['url'] ?? '',
-      title: article['title'] ?? '제목 없음',
-      description: article['description'] ?? '',
-      content: article['content'] ?? '',
+      title: title,
+      description: description,
+      content: content,
       source: article['source']?['name'] ?? '알 수 없음',
       imageUrl: article['urlToImage'] ?? '',
       newsUrl: article['url'] ?? '',

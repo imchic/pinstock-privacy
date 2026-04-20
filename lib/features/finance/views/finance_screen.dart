@@ -2,21 +2,57 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pinstock/config/constants.dart';
+import 'package:pinstock/config/theme/colors.dart';
 import 'package:shimmer/shimmer.dart';
-import 'package:stock_hub/config/constants.dart';
-import 'package:stock_hub/config/theme/colors.dart';
 
 import '../../../data/models/finance_news.dart';
 import '../../../data/models/index.dart' show News;
 import '../../../data/models/market_index.dart';
 import '../../../providers/index.dart';
+import '../../../utils/ad_service.dart';
 import '../../../utils/app_toast.dart';
 import '../../feed/views/news_popup.dart';
 import '../../feed/views/news_web_view_screen.dart';
 
 /// 금융 뉴스 화면
+class _MarketStatusInfo {
+  final String label;
+  final String detail;
+  final Color color;
+
+  const _MarketStatusInfo({
+    required this.label,
+    required this.detail,
+    required this.color,
+  });
+}
+
+class _EconomicCalendarEvent {
+  final String title;
+  final String market;
+  final String detail;
+  final String scheduleLabel;
+  final DateTime scheduledAt;
+  final Color color;
+  final IconData icon;
+
+  const _EconomicCalendarEvent({
+    required this.title,
+    required this.market,
+    required this.detail,
+    required this.scheduleLabel,
+    required this.scheduledAt,
+    required this.color,
+    required this.icon,
+  });
+}
+
+/// 금융 뉴스 화면
 class FinanceScreen extends ConsumerStatefulWidget {
-  const FinanceScreen({super.key});
+  final bool showEconomicOnly;
+
+  const FinanceScreen({super.key, this.showEconomicOnly = false});
 
   @override
   ConsumerState<FinanceScreen> createState() => _FinanceScreenState();
@@ -24,25 +60,32 @@ class FinanceScreen extends ConsumerStatefulWidget {
 
 class _FinanceScreenState extends ConsumerState<FinanceScreen>
     with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+  TabController? _tabController;
   Timer? _newsRefreshTimer;
+  Timer? _marketStatusTimer;
+  bool _isRefreshingAiSummary = false;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 8, vsync: this);
-    // 5분마다 뉴스 자동 갱신 (stockMarketNewsProvider를 무효화하면
-    // allFinanceNewsProvider → 각 탭 프로바이더까지 연쇄 갱신됨)
+    if (!widget.showEconomicOnly) {
+      _tabController = TabController(length: 7, vsync: this);
+    }
     _newsRefreshTimer = Timer.periodic(const Duration(minutes: 5), (_) {
       if (!mounted) return;
       ref.invalidate(stockMarketNewsProvider);
+    });
+    _marketStatusTimer = Timer.periodic(const Duration(seconds: 15), (_) {
+      if (!mounted) return;
+      setState(() {});
     });
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
+    _tabController?.dispose();
     _newsRefreshTimer?.cancel();
+    _marketStatusTimer?.cancel();
     super.dispose();
   }
 
@@ -52,6 +95,13 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
 
   @override
   Widget build(BuildContext context) {
+    if (widget.showEconomicOnly) {
+      return Scaffold(
+        backgroundColor: context.colors.bg,
+        body: SafeArea(bottom: false, child: _buildEconomicTab()),
+      );
+    }
+
     return Scaffold(
       backgroundColor: context.colors.bg,
       body: NestedScrollView(
@@ -74,158 +124,1070 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
             _buildKosdaqTab(),
             _buildNasdaqTab(),
             _buildCoinTab(),
-            _buildEconomicTab(),
           ],
         ),
       ),
     );
   }
 
-  // ── 헤더 ──────────────────────────────────────
   Widget _buildHeader() {
+    final domesticMarketStatus = _getCurrentMarketStatus();
+    final usMarketStatus = _getUsMarketStatus();
+
     return SafeArea(
       bottom: false,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Column(
+            Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  '오늘의 증시 분석',
-                  style: TextStyle(
-                    color: context.colors.textPrimary,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 24,
-                    letterSpacing: -0.5,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '실시간 시장 분석',
-                  style: TextStyle(
-                    color: context.colors.textSecondary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w400,
-                  ),
-                ),
-              ],
-            ),
-            const Spacer(),
-            Consumer(
-              builder: (context, ref, _) {
-                final indicesAsync = ref.watch(marketIndicesProvider);
-                final updatedAt =
-                    indicesAsync.valueOrNull?.firstOrNull?.updatedAt;
-                final timeStr = updatedAt != null
-                    ? '${updatedAt.hour.toString().padLeft(2, '0')}:${updatedAt.minute.toString().padLeft(2, '0')}:${updatedAt.second.toString().padLeft(2, '0')}'
-                    : null;
-                final statusColor = indicesAsync.isLoading
-                    ? AppColors.orange
-                    : indicesAsync.hasError
-                    ? AppColors.red
-                    : AppColors.green;
-
-                return GestureDetector(
-                  onTap: () {
-                    ref.invalidate(marketIndicesProvider);
-                    _showToast('시장 지수 새로고침 중…');
-                  },
-                  child: Container(
-                    width: 100,
-                    constraints: const BoxConstraints(minHeight: 56),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      color: context.colors.surfaceLight,
-                      borderRadius: BorderRadius.circular(18),
-                      border: Border.all(
-                        color: statusColor.withValues(alpha: 0.16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '오늘의 증시 분석',
+                        style: TextStyle(
+                          color: context.colors.textPrimary,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 24,
+                          letterSpacing: -0.5,
+                        ),
                       ),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
+                      const SizedBox(height: 2),
+                      Text(
+                        '실시간 시장 분석',
+                        style: TextStyle(
+                          color: context.colors.textSecondary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w400,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Consumer(
+                  builder: (context, ref, _) {
+                    final indicesAsync = ref.watch(marketIndicesProvider);
+                    final updatedAt =
+                        indicesAsync.valueOrNull?.firstOrNull?.updatedAt;
+                    final timeStr = updatedAt != null
+                        ? '${updatedAt.hour.toString().padLeft(2, '0')}:${updatedAt.minute.toString().padLeft(2, '0')}:${updatedAt.second.toString().padLeft(2, '0')}'
+                        : null;
+                    final statusColor = indicesAsync.isLoading
+                        ? AppColors.orange
+                        : indicesAsync.hasError
+                        ? AppColors.red
+                        : AppColors.green;
+
+                    return GestureDetector(
+                      onTap: () {
+                        ref.invalidate(marketIndicesProvider);
+                        _showToast('시장 지수 새로고침 중…');
+                      },
+                      child: Container(
+                        width: 112,
+                        constraints: const BoxConstraints(minHeight: 64),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                        decoration: BoxDecoration(
+                          color: context.colors.surfaceLight,
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(
+                            color: statusColor.withValues(alpha: 0.16),
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Container(
-                              width: 8,
-                              height: 8,
-                              decoration: BoxDecoration(
-                                color: statusColor,
-                                shape: BoxShape.circle,
-                              ),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  width: 8,
+                                  height: 8,
+                                  decoration: BoxDecoration(
+                                    color: statusColor,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  indicesAsync.isLoading
+                                      ? '갱신 중'
+                                      : indicesAsync.hasError
+                                      ? '오류'
+                                      : '업데이트',
+                                  style: TextStyle(
+                                    color: statusColor,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 0.2,
+                                  ),
+                                ),
+                              ],
                             ),
-                            const SizedBox(width: 6),
+                            const SizedBox(height: 8),
                             Text(
-                              indicesAsync.isLoading
-                                  ? '갱신 중'
-                                  : indicesAsync.hasError
-                                  ? '오류'
-                                  : '업데이트',
+                              timeStr ?? '--:--:--',
                               style: TextStyle(
-                                color: statusColor,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: 0.2,
+                                color: context.colors.textPrimary,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: -0.2,
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 8),
-                        AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 180),
-                          switchInCurve: Curves.easeOut,
-                          switchOutCurve: Curves.easeIn,
-                          child: indicesAsync.isLoading
-                              ? Row(
-                                  key: const ValueKey('loading'),
-                                  children: [
-                                    SizedBox(
-                                      width: 14,
-                                      height: 14,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: statusColor,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      '불러오는 중',
-                                      style: TextStyle(
-                                        color: context.colors.textSecondary,
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ],
-                                )
-                              : Text(
-                                  timeStr ?? '--:--:--',
-                                  key: ValueKey(timeStr ?? 'empty'),
-                                  style: TextStyle(
-                                    color: context.colors.textPrimary,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: -0.3,
-                                  ),
-                                ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
+                      ),
+                    );
+                  },
+                ),
+              ],
             ),
+            const SizedBox(height: 10),
+            _buildMarketStatusBadge(title: '국내', status: domesticMarketStatus),
+            const SizedBox(height: 6),
+            _buildMarketStatusBadge(title: '미국', status: usMarketStatus),
+            const SizedBox(height: 8),
+            _buildInvestmentDisclaimer(),
           ],
         ),
       ),
     );
+  }
+
+  Widget _buildInvestmentDisclaimer() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: context.colors.surfaceLight,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: context.colors.border),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            Icons.info_outline_rounded,
+            size: 16,
+            color: context.colors.textSecondary,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              '본 서비스에서 제공하는 정보는 단순 참고용이며, 투자를 권유하거나 종목을 추천하기 위한 목적이 아니에요.',
+              style: TextStyle(
+                color: context.colors.textSecondary,
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                height: 1.4,
+                letterSpacing: -0.2,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMarketStatusBadge({
+    required String title,
+    required _MarketStatusInfo status,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: status.color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: status.color.withValues(alpha: 0.20)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              color: context.colors.textSecondary,
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.2,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(
+              color: status.color,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            status.label,
+            style: TextStyle(
+              color: status.color,
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.2,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            status.detail,
+            style: TextStyle(
+              color: context.colors.textSecondary,
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              letterSpacing: -0.2,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  DateTime _utcNow() => DateTime.now().toUtc();
+
+  DateTime _koreaNow() => _utcNow().add(const Duration(hours: 9));
+
+  DateTime _newYorkNow() {
+    final nowUtc = _utcNow();
+    final offsetHours = _isUsEasternDst(nowUtc) ? -4 : -5;
+    return nowUtc.add(Duration(hours: offsetHours));
+  }
+
+  int _usToKoreaOffsetHours() {
+    return _isUsEasternDst(_utcNow()) ? 13 : 14;
+  }
+
+  String _formatUsMarketTimeInKorea(int hour, int minute) {
+    final base = DateTime.utc(2000, 1, 1, hour, minute);
+    final koreaTime = base.add(Duration(hours: _usToKoreaOffsetHours()));
+    final hourText = koreaTime.hour.toString().padLeft(2, '0');
+    final minuteText = koreaTime.minute.toString().padLeft(2, '0');
+    return '$hourText:$minuteText';
+  }
+
+  bool _isUsEasternDst(DateTime utcTime) {
+    final year = utcTime.year;
+    final dstStartUtc = _nthWeekdayOfMonthUtc(
+      year,
+      3,
+      DateTime.sunday,
+      2,
+      hour: 7,
+    );
+    final dstEndUtc = _nthWeekdayOfMonthUtc(
+      year,
+      11,
+      DateTime.sunday,
+      1,
+      hour: 6,
+    );
+    return !utcTime.isBefore(dstStartUtc) && utcTime.isBefore(dstEndUtc);
+  }
+
+  DateTime _nthWeekdayOfMonthUtc(
+    int year,
+    int month,
+    int weekday,
+    int occurrence, {
+    int hour = 0,
+    int minute = 0,
+  }) {
+    final firstDay = DateTime.utc(year, month);
+    final offset = (weekday - firstDay.weekday + 7) % 7;
+    final day = 1 + offset + (occurrence - 1) * 7;
+    return DateTime.utc(year, month, day, hour, minute);
+  }
+
+  _MarketStatusInfo _getCurrentMarketStatus() {
+    final now = _koreaNow();
+    if (now.weekday == DateTime.saturday || now.weekday == DateTime.sunday) {
+      return const _MarketStatusInfo(
+        label: '국내장 휴장',
+        detail: '주말에는 국내 시장이 열리지 않아요',
+        color: Color(0xFF9AA4AF),
+      );
+    }
+
+    final seconds = now.hour * 3600 + now.minute * 60 + now.second;
+
+    if (seconds < _marketTimeSeconds(8, 0)) {
+      return const _MarketStatusInfo(
+        label: '개장 전',
+        detail: 'NXT 프리마켓 08:00 시작',
+        color: AppColors.orange,
+      );
+    }
+
+    if (seconds < _marketTimeSeconds(8, 50)) {
+      return const _MarketStatusInfo(
+        label: 'NXT 프리마켓 진행 중',
+        detail: 'KRX 09:00, NXT 메인 09:00:30 시작',
+        color: AppColors.green,
+      );
+    }
+
+    if (seconds < _marketTimeSeconds(9, 0)) {
+      return const _MarketStatusInfo(
+        label: '정규장 대기',
+        detail: 'KRX 09:00, NXT 메인 09:00:30 시작',
+        color: AppColors.orange,
+      );
+    }
+
+    if (seconds < _marketTimeSeconds(9, 0, 30)) {
+      return const _MarketStatusInfo(
+        label: 'KRX 정규장 시작',
+        detail: 'NXT 메인마켓 09:00:30 시작',
+        color: AppColors.accent,
+      );
+    }
+
+    if (seconds < _marketTimeSeconds(15, 20)) {
+      return const _MarketStatusInfo(
+        label: 'KRX·NXT 메인 진행 중',
+        detail: 'NXT 메인마켓 15:20 종료',
+        color: AppColors.green,
+      );
+    }
+
+    if (seconds < _marketTimeSeconds(15, 30)) {
+      return const _MarketStatusInfo(
+        label: 'KRX 정규장 진행 중',
+        detail: 'NXT 종가매매·KRX 마감 15:30',
+        color: AppColors.green,
+      );
+    }
+
+    if (seconds < _marketTimeSeconds(15, 40)) {
+      return const _MarketStatusInfo(
+        label: 'NXT 종가매매 진행 중',
+        detail: '애프터마켓 15:40 시작',
+        color: AppColors.accent,
+      );
+    }
+
+    if (seconds < _marketTimeSeconds(16, 0)) {
+      return const _MarketStatusInfo(
+        label: 'NXT 종가·애프터 진행 중',
+        detail: '종가매매 16:00 종료',
+        color: AppColors.info,
+      );
+    }
+
+    if (seconds < _marketTimeSeconds(20, 0)) {
+      return const _MarketStatusInfo(
+        label: 'NXT 애프터마켓 진행 중',
+        detail: '국내장 종료까지 20:00',
+        color: AppColors.info,
+      );
+    }
+
+    return const _MarketStatusInfo(
+      label: '장 종료',
+      detail: '다음 NXT 프리마켓 08:00 시작',
+      color: Color(0xFF9AA4AF),
+    );
+  }
+
+  _MarketStatusInfo _getUsMarketStatus() {
+    final now = _newYorkNow();
+    final isWeekend =
+        now.weekday == DateTime.saturday || now.weekday == DateTime.sunday;
+
+    if (isWeekend) {
+      return const _MarketStatusInfo(
+        label: '미국장 휴장',
+        detail: '주말에는 뉴욕 시장이 열리지 않아요',
+        color: Color(0xFF9AA4AF),
+      );
+    }
+
+    final seconds = now.hour * 3600 + now.minute * 60 + now.second;
+
+    if (seconds < _marketTimeSeconds(4, 0)) {
+      return _MarketStatusInfo(
+        label: '장 종료',
+        detail: '한국시간 프리마켓 ${_formatUsMarketTimeInKorea(4, 0)} 시작',
+        color: const Color(0xFF9AA4AF),
+      );
+    }
+
+    if (seconds < _marketTimeSeconds(9, 30)) {
+      return _MarketStatusInfo(
+        label: '프리마켓 진행 중',
+        detail: '한국시간 정규장 ${_formatUsMarketTimeInKorea(9, 30)} 시작',
+        color: AppColors.orange,
+      );
+    }
+
+    if (seconds < _marketTimeSeconds(16, 0)) {
+      return _MarketStatusInfo(
+        label: '정규장 진행 중',
+        detail: '한국시간 정규장 ${_formatUsMarketTimeInKorea(16, 0)} 마감',
+        color: AppColors.green,
+      );
+    }
+
+    if (seconds < _marketTimeSeconds(20, 0)) {
+      return _MarketStatusInfo(
+        label: '애프터마켓 진행 중',
+        detail: '한국시간 시간외 ${_formatUsMarketTimeInKorea(20, 0)} 종료',
+        color: AppColors.info,
+      );
+    }
+
+    return _MarketStatusInfo(
+      label: '장 종료',
+      detail: '다음 프리마켓 ${_formatUsMarketTimeInKorea(4, 0)} 시작',
+      color: const Color(0xFF9AA4AF),
+    );
+  }
+
+  int _marketTimeSeconds(int hour, int minute, [int second = 0]) {
+    return hour * 3600 + minute * 60 + second;
+  }
+
+  List<_EconomicCalendarEvent> _buildUpcomingEconomicEvents() {
+    final events = [
+      _EconomicCalendarEvent(
+        title: '한국 수출입 동향',
+        market: '한국',
+        detail: '월간 수출입과 무역수지 발표',
+        scheduleLabel: '매월 1일 09:00',
+        scheduledAt: _nextKoreaMonthlyOccurrence(day: 1, hour: 9),
+        color: AppColors.accent,
+        icon: Icons.local_shipping_rounded,
+      ),
+      _EconomicCalendarEvent(
+        title: '미국 신규 실업수당',
+        market: '미국',
+        detail: '고용시장 둔화 여부를 빠르게 확인하는 주간 지표',
+        scheduleLabel: '매주 목요일 21:30/22:30',
+        scheduledAt: _nextEasternWeeklyOccurrence(
+          weekday: DateTime.thursday,
+          hour: 8,
+          minute: 30,
+        ),
+        color: AppColors.warning,
+        icon: Icons.work_outline_rounded,
+      ),
+      _EconomicCalendarEvent(
+        title: '미국 고용보고서',
+        market: '미국',
+        detail: '비농업 고용과 실업률 발표',
+        scheduleLabel: '매월 첫째 금요일 21:30/22:30',
+        scheduledAt: _nextEasternNthWeekdayOccurrence(
+          weekday: DateTime.friday,
+          occurrence: 1,
+          hour: 8,
+          minute: 30,
+        ),
+        color: AppColors.orange,
+        icon: Icons.badge_rounded,
+      ),
+      _EconomicCalendarEvent(
+        title: '미국 CPI',
+        market: '미국',
+        detail: '소비자물가 발표로 금리 기대가 크게 움직일 수 있어요',
+        scheduleLabel: '매월 12일 21:30/22:30',
+        scheduledAt: _nextEasternMonthlyOccurrence(
+          day: 12,
+          hour: 8,
+          minute: 30,
+        ),
+        color: AppColors.red,
+        icon: Icons.local_fire_department_rounded,
+      ),
+      _EconomicCalendarEvent(
+        title: '미국 PPI',
+        market: '미국',
+        detail: '생산자물가로 인플레이션 선행 압력을 확인해요',
+        scheduleLabel: '매월 13일 21:30/22:30',
+        scheduledAt: _nextEasternMonthlyOccurrence(
+          day: 13,
+          hour: 8,
+          minute: 30,
+        ),
+        color: AppColors.info,
+        icon: Icons.factory_rounded,
+      ),
+      _EconomicCalendarEvent(
+        title: '미국 소매판매',
+        market: '미국',
+        detail: '소비 경기 강도를 가늠하는 핵심 지표예요',
+        scheduleLabel: '매월 15일 21:30/22:30',
+        scheduledAt: _nextEasternMonthlyOccurrence(
+          day: 15,
+          hour: 8,
+          minute: 30,
+        ),
+        color: AppColors.green,
+        icon: Icons.shopping_bag_rounded,
+      ),
+    ]..sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
+
+    return events;
+  }
+
+  DateTime _nextKoreaMonthlyOccurrence({
+    required int day,
+    required int hour,
+    int minute = 0,
+  }) {
+    final now = _koreaNow();
+    var year = now.year;
+    var month = now.month;
+
+    while (true) {
+      final lastDay = DateTime.utc(year, month + 1, 0).day;
+      final candidateDay = day <= lastDay ? day : lastDay;
+      final candidate = DateTime.utc(year, month, candidateDay, hour, minute);
+      if (!candidate.isBefore(now)) {
+        return candidate;
+      }
+      if (month == 12) {
+        year += 1;
+        month = 1;
+      } else {
+        month += 1;
+      }
+    }
+  }
+
+  DateTime _nextEasternMonthlyOccurrence({
+    required int day,
+    required int hour,
+    int minute = 0,
+  }) {
+    final now = _koreaNow();
+    var year = now.year;
+    var month = now.month;
+
+    while (true) {
+      final lastDay = DateTime.utc(year, month + 1, 0).day;
+      final candidateDay = day <= lastDay ? day : lastDay;
+      final candidate = _easternLocalToKoreaTime(
+        year,
+        month,
+        candidateDay,
+        hour,
+        minute,
+      );
+      if (!candidate.isBefore(now)) {
+        return candidate;
+      }
+      if (month == 12) {
+        year += 1;
+        month = 1;
+      } else {
+        month += 1;
+      }
+    }
+  }
+
+  DateTime _nextEasternWeeklyOccurrence({
+    required int weekday,
+    required int hour,
+    int minute = 0,
+  }) {
+    final now = _koreaNow();
+    var candidate = _easternLocalToKoreaTime(
+      now.year,
+      now.month,
+      now.day,
+      hour,
+      minute,
+    );
+    final weekdayDelta = (weekday - candidate.weekday + 7) % 7;
+    candidate = candidate.add(Duration(days: weekdayDelta));
+
+    if (candidate.isBefore(now)) {
+      candidate = candidate.add(const Duration(days: 7));
+    }
+    return candidate;
+  }
+
+  DateTime _nextEasternNthWeekdayOccurrence({
+    required int weekday,
+    required int occurrence,
+    required int hour,
+    int minute = 0,
+  }) {
+    final now = _koreaNow();
+    var year = now.year;
+    var month = now.month;
+
+    while (true) {
+      final candidateDay = _nthWeekdayOfMonthDay(
+        year,
+        month,
+        weekday,
+        occurrence,
+      );
+      final candidate = _easternLocalToKoreaTime(
+        year,
+        month,
+        candidateDay,
+        hour,
+        minute,
+      );
+      if (!candidate.isBefore(now)) {
+        return candidate;
+      }
+      if (month == 12) {
+        year += 1;
+        month = 1;
+      } else {
+        month += 1;
+      }
+    }
+  }
+
+  int _nthWeekdayOfMonthDay(int year, int month, int weekday, int occurrence) {
+    final firstDay = DateTime.utc(year, month);
+    final offset = (weekday - firstDay.weekday + 7) % 7;
+    return 1 + offset + (occurrence - 1) * 7;
+  }
+
+  DateTime _easternLocalToKoreaTime(
+    int year,
+    int month,
+    int day,
+    int hour,
+    int minute,
+  ) {
+    return _easternLocalToUtc(
+      year,
+      month,
+      day,
+      hour,
+      minute,
+    ).add(const Duration(hours: 9));
+  }
+
+  DateTime _easternLocalToUtc(
+    int year,
+    int month,
+    int day,
+    int hour,
+    int minute,
+  ) {
+    final dstCandidate = DateTime.utc(year, month, day, hour + 4, minute);
+    if (_isUsEasternDst(dstCandidate)) {
+      return dstCandidate;
+    }
+    return DateTime.utc(year, month, day, hour + 5, minute);
+  }
+
+  String _formatEconomicEventDate(DateTime scheduledAt) {
+    return '${scheduledAt.month.toString().padLeft(2, '0')}/${scheduledAt.day.toString().padLeft(2, '0')}';
+  }
+
+  String _formatEconomicEventTime(DateTime scheduledAt) {
+    final hour = scheduledAt.hour.toString().padLeft(2, '0');
+    final minute = scheduledAt.minute.toString().padLeft(2, '0');
+    return '$hour:$minute';
+  }
+
+  String _weekdayLabel(int weekday) {
+    const labels = ['월', '화', '수', '목', '금', '토', '일'];
+    return labels[weekday - 1];
+  }
+
+  String _formatEconomicCountdown(DateTime scheduledAt) {
+    final diff = scheduledAt.difference(_koreaNow());
+    if (diff.inMinutes <= 0) {
+      return '진행 중';
+    }
+    if (diff.inDays == 0) {
+      if (diff.inHours >= 1) {
+        return '${diff.inHours}시간 후';
+      }
+      return '${diff.inMinutes}분 후';
+    }
+    if (diff.inDays == 1) {
+      return '내일';
+    }
+    return 'D-${diff.inDays}';
+  }
+
+  Widget _buildEconomicCalendarSection() {
+    return _buildFallbackEconomicCalendarSection(
+      helperText:
+          '실시간 API 대신 반복적으로 확인하는 핵심 정기 일정만 보여드려요. 실제 발표일은 기관 공지에 따라 조금씩 달라질 수 있어요.',
+    );
+  }
+
+  Widget _buildFallbackEconomicCalendarSection({String? helperText}) {
+    final events = _buildUpcomingEconomicEvents().take(6).toList();
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
+      decoration: BoxDecoration(
+        color: context.colors.surface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: context.colors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: AppColors.accent.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.event_note_rounded,
+                  color: AppColors.accent,
+                  size: 18,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '정기 경제일정',
+                      style: TextStyle(
+                        color: context.colors.textPrimary,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '오늘 기준으로 가장 가까운 주요 발표를 먼저 보여줘요',
+                      style: TextStyle(
+                        color: context.colors.textSecondary,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        letterSpacing: -0.2,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                decoration: BoxDecoration(
+                  color: context.colors.surfaceLight,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  'KST',
+                  style: TextStyle(
+                    color: context.colors.textSecondary,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.3,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          // Container(
+          //   width: double.infinity,
+          //   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+          //   decoration: BoxDecoration(
+          //     color: context.colors.surfaceLight,
+          //     borderRadius: BorderRadius.circular(12),
+          //   ),
+          //   child: Text(
+          //     helperText ??
+          //         '실시간 캘린더 API 대신 반복적으로 확인하는 핵심 일정만 정리한 카드예요. 실제 발표일은 기관 공지에 따라 조금씩 달라질 수 있어요.',
+          //     style: TextStyle(
+          //       color: context.colors.textSecondary,
+          //       fontSize: 11,
+          //       fontWeight: FontWeight.w500,
+          //       height: 1.45,
+          //       letterSpacing: -0.15,
+          //     ),
+          //   ),
+          // ),
+          // const SizedBox(height: 14),
+          ...List.generate(
+            events.length,
+            (index) => _buildEconomicTimelineItem(
+              event: events[index],
+              isLast: index == events.length - 1,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEconomicTimelineItem({
+    required _EconomicCalendarEvent event,
+    required bool isLast,
+  }) {
+    final countdown = _formatEconomicCountdown(event.scheduledAt);
+    final isSoon = event.scheduledAt.difference(_koreaNow()).inHours < 24;
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: isLast ? 0 : 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 62,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _formatEconomicEventDate(event.scheduledAt),
+                  style: TextStyle(
+                    color: context.colors.textPrimary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.2,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${_weekdayLabel(event.scheduledAt.weekday)} · ${_formatEconomicEventTime(event.scheduledAt)}',
+                  style: TextStyle(
+                    color: context.colors.textSecondary,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: -0.2,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(
+            width: 22,
+            child: Column(
+              children: [
+                Container(
+                  width: 12,
+                  height: 12,
+                  decoration: BoxDecoration(
+                    color: event.color,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: event.color.withValues(alpha: 0.24),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                ),
+                if (!isLast)
+                  Container(
+                    width: 2,
+                    height: 82,
+                    margin: const EdgeInsets.only(top: 4),
+                    decoration: BoxDecoration(
+                      color: context.colors.border,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(12, 11, 12, 11),
+              decoration: BoxDecoration(
+                color: context.colors.surfaceLight,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: event.color.withValues(alpha: isSoon ? 0.34 : 0.18),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(event.icon, size: 15, color: event.color),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          event.title,
+                          style: TextStyle(
+                            color: context.colors.textPrimary,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.2,
+                          ),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 7,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: event.color.withValues(alpha: 0.10),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          event.market,
+                          style: TextStyle(
+                            color: event.color,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.1,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 7),
+                  Text(
+                    event.detail,
+                    style: TextStyle(
+                      color: context.colors.textSecondary,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      height: 1.4,
+                      letterSpacing: -0.15,
+                    ),
+                  ),
+                  const SizedBox(height: 9),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          event.scheduleLabel,
+                          style: TextStyle(
+                            color: context.colors.textSecondary,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: -0.1,
+                          ),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: event.color.withValues(alpha: 0.10),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          countdown,
+                          style: TextStyle(
+                            color: event.color,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.1,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEconomicNewsSectionLabel() {
+    return Padding(
+      padding: const EdgeInsets.only(left: 2),
+      child: Text(
+        '경제 뉴스',
+        style: TextStyle(
+          color: context.colors.textPrimary,
+          fontSize: 14,
+          fontWeight: FontWeight.w800,
+          letterSpacing: -0.3,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInlineEmptyCard(String message, IconData icon) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 18),
+      decoration: BoxDecoration(
+        color: context.colors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: context.colors.border),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, size: 24, color: context.colors.textSecondary),
+          const SizedBox(height: 8),
+          Text(
+            message,
+            style: TextStyle(
+              color: context.colors.textSecondary,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _refreshAiSummary({required bool countForAd}) async {
+    if (_isRefreshingAiSummary || !mounted) {
+      return;
+    }
+
+    setState(() => _isRefreshingAiSummary = true);
+
+    try {
+      final refreshedSummary = await ref.refresh(
+        aiMarketSummaryProvider.future,
+      );
+      if (!mounted) {
+        return;
+      }
+
+      if (refreshedSummary.trim().isEmpty) {
+        _showToast('AI 요약 결과가 비어 있어요.', color: AppColors.orange);
+        return;
+      }
+
+      _showToast('AI 요약을 새로고침했어요.');
+
+      if (countForAd) {
+        unawaited(maybeShowAiSummaryRefreshAd(context));
+      }
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      _showToast('AI 요약을 새로고침하지 못했어요: $error', color: AppColors.red);
+    } finally {
+      if (mounted) {
+        setState(() => _isRefreshingAiSummary = false);
+      }
+    }
   }
 
   // ── AI 한줄 요약 카드 ──────────────────────────
@@ -233,6 +1195,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
     return Consumer(
       builder: (context, ref, _) {
         final summaryAsync = ref.watch(aiMarketSummaryProvider);
+        final isAiRefreshing = _isRefreshingAiSummary || summaryAsync.isLoading;
         return GestureDetector(
           onTap: summaryAsync.hasValue
               ? () => _showAiRelatedNewsSheet(context, ref, summaryAsync.value!)
@@ -292,7 +1255,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
                         color: context.colors.textSecondary,
                       ),
                     const SizedBox(width: 4),
-                    if (summaryAsync.isLoading)
+                    if (isAiRefreshing)
                       const SizedBox(
                         width: 14,
                         height: 14,
@@ -303,7 +1266,9 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
                       )
                     else
                       GestureDetector(
-                        onTap: () => ref.invalidate(aiMarketSummaryProvider),
+                        onTap: () => _refreshAiSummary(
+                          countForAd: summaryAsync.hasValue,
+                        ),
                         child: Icon(
                           Icons.refresh_rounded,
                           size: 16,
@@ -342,7 +1307,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
                       ),
                     ),
                     error: (e, _) => GestureDetector(
-                      onTap: () => ref.invalidate(aiMarketSummaryProvider),
+                      onTap: () => _refreshAiSummary(countForAd: false),
                       child: Text(
                         AppConstants.geminiApiKey.isEmpty
                             ? 'Gemini API 키를 설정하면 AI 요약이 활성화됩니다'
@@ -587,6 +1552,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
       final color = pickColors[label] ?? AppColors.accent;
       final rest = line.trim().replaceFirst(pickPattern, '').trim();
       final isNasdaq = label == '나스닥';
+      final isCoin = label == '코인';
 
       final itemPattern = RegExp(r'^(.+?)\((.+?)\)$');
       final trailingTickerPattern = RegExp(r'^(.*?)\s+([A-Z]{2,5})$');
@@ -598,11 +1564,18 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
             final im = itemPattern.firstMatch(t);
             final rawName = im != null ? im.group(1)!.trim() : t;
             final tickerMatch = trailingTickerPattern.firstMatch(rawName);
+            final coinEnglishKeyword = switch (rawName) {
+              '비트코인' => 'Bitcoin',
+              '비트코인 BTC' => 'BTC',
+              _ => null,
+            };
             final displayName = isNasdaq && tickerMatch != null
                 ? tickerMatch.group(1)!.trim()
                 : rawName;
             final linkKeyword = isNasdaq && tickerMatch != null
                 ? tickerMatch.group(2)!.trim()
+                : isCoin && coinEnglishKeyword != null
+                ? coinEnglishKeyword
                 : rawName;
             final reason = im != null ? im.group(2)!.trim() : '';
             return (
@@ -879,21 +1852,20 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
   // ── 탭 바 ──────────────────────────────────────
   Widget _buildTabBar() {
     const tabDefs = [
-      (0, '속보', AppColors.green),
-      (1, '키워드', AppColors.info),
-      (2, '전쟁', AppColors.red),
-      (3, '코스피', Color(0xFF3B82F6)),
-      (4, '코스닥', Color(0xFF14B8A6)),
-      (5, '나스닥', Color(0xFFF59E0B)),
-      (6, '코인', Color(0xFFF7931A)),
-      (7, '경제', Color(0xFF6366F1)),
+      (0, '속보', AppColors.green, Icons.campaign_rounded),
+      (1, '키워드', AppColors.info, Icons.sell_rounded),
+      (2, '전쟁', AppColors.red, Icons.public_rounded),
+      (3, '코스피', Color(0xFF3B82F6), Icons.trending_up_rounded),
+      (4, '코스닥', Color(0xFF14B8A6), Icons.show_chart_rounded),
+      (5, '나스닥', Color(0xFFF59E0B), Icons.bar_chart_rounded),
+      (6, '코인', Color(0xFFF7931A), Icons.currency_bitcoin_rounded),
     ];
 
     return Container(
       color: context.colors.bg,
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 10),
       child: AnimatedBuilder(
-        animation: _tabController,
+        animation: _tabController!,
         builder: (context, _) {
           return SingleChildScrollView(
             scrollDirection: Axis.horizontal,
@@ -901,7 +1873,12 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
               children: [
                 for (var i = 0; i < tabDefs.length; i++) ...[
                   if (i > 0) const SizedBox(width: 8),
-                  _buildPillTab(tabDefs[i].$1, tabDefs[i].$2, tabDefs[i].$3),
+                  _buildPillTab(
+                    tabDefs[i].$1,
+                    tabDefs[i].$2,
+                    tabDefs[i].$3,
+                    tabDefs[i].$4,
+                  ),
                 ],
               ],
             ),
@@ -911,9 +1888,8 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
     );
   }
 
-  Widget _buildPillTab(int index, String label, Color color) {
-    final isSelected = _tabController.index == index;
-    final isBreaking = label == '속보';
+  Widget _buildPillTab(int index, String label, Color color, IconData icon) {
+    final isSelected = _tabController!.index == index;
     final foregroundColor = isSelected
         ? Colors.white
         : Color.alphaBlend(
@@ -922,7 +1898,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
           );
 
     return GestureDetector(
-      onTap: () => _tabController.animateTo(index),
+      onTap: () => _tabController!.animateTo(index),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         curve: Curves.easeInOut,
@@ -962,22 +1938,8 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (isBreaking) ...[
-              _FinanceLiveIndicator(isSelected: isSelected),
-              const SizedBox(width: 5),
-            ] else ...[
-              Container(
-                width: 7,
-                height: 7,
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? Colors.white.withValues(alpha: 0.92)
-                      : color.withValues(alpha: 0.85),
-                  shape: BoxShape.circle,
-                ),
-              ),
-              const SizedBox(width: 7),
-            ],
+            Icon(icon, size: 14, color: foregroundColor),
+            const SizedBox(width: 7),
             Text(
               label,
               style: TextStyle(
@@ -1026,7 +1988,10 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
                     child: Stack(
                       children: [
-                        _FinanceNewsCard(item: item),
+                        _FinanceNewsCard(
+                          item: item,
+                          detailContextLabel: '속보 탭',
+                        ),
                         if (isNew)
                           Positioned(
                             top: 10,
@@ -1146,8 +2111,10 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
                 itemCount: sorted.length,
                 separatorBuilder: (_, __) => const SizedBox(height: 6),
-                itemBuilder: (context, index) =>
-                    _FinanceNewsCard(item: sorted[index]),
+                itemBuilder: (context, index) => _FinanceNewsCard(
+                  item: sorted[index],
+                  detailContextLabel: '전쟁 탭',
+                ),
               );
             },
             loading: () => const Center(
@@ -1187,8 +2154,10 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
                 itemCount: sorted.length,
                 separatorBuilder: (_, __) => const SizedBox(height: 6),
-                itemBuilder: (context, index) =>
-                    _FinanceNewsCard(item: sorted[index]),
+                itemBuilder: (context, index) => _FinanceNewsCard(
+                  item: sorted[index],
+                  detailContextLabel: '코스닥 탭',
+                ),
               );
             },
             loading: () => const Center(
@@ -1228,8 +2197,10 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
                 itemCount: sorted.length,
                 separatorBuilder: (_, __) => const SizedBox(height: 6),
-                itemBuilder: (context, index) =>
-                    _FinanceNewsCard(item: sorted[index]),
+                itemBuilder: (context, index) => _FinanceNewsCard(
+                  item: sorted[index],
+                  detailContextLabel: '코스피 탭',
+                ),
               );
             },
             loading: () => const Center(
@@ -1269,8 +2240,10 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
                 itemCount: sorted.length,
                 separatorBuilder: (_, __) => const SizedBox(height: 6),
-                itemBuilder: (context, index) =>
-                    _FinanceNewsCard(item: sorted[index]),
+                itemBuilder: (context, index) => _FinanceNewsCard(
+                  item: sorted[index],
+                  detailContextLabel: '나스닥 탭',
+                ),
               );
             },
             loading: () => const Center(
@@ -1310,8 +2283,10 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
                 itemCount: sorted.length,
                 separatorBuilder: (_, __) => const SizedBox(height: 6),
-                itemBuilder: (context, index) =>
-                    _FinanceNewsCard(item: sorted[index]),
+                itemBuilder: (context, index) => _FinanceNewsCard(
+                  item: sorted[index],
+                  detailContextLabel: '코인 탭',
+                ),
               );
             },
             loading: () => const Center(
@@ -1339,29 +2314,59 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
             ref.invalidate(economicNewsProvider);
             _showToast('경제 뉴스 새로고침 중…');
           },
-          child: newsAsync.when(
-            data: (news) {
-              if (news.isEmpty) {
-                return _buildEmptyState('경제 뉴스가 없습니다', Icons.business_outlined);
-              }
-              final sorted = [...news]
-                ..sort((a, b) => (b.publishedAt).compareTo(a.publishedAt));
-              return ListView.separated(
-                physics: const ClampingScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-                itemCount: sorted.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 6),
-                itemBuilder: (context, index) =>
-                    _FinanceNewsCard(item: sorted[index]),
-              );
-            },
-            loading: () => const Center(
-              child: CircularProgressIndicator(
-                color: AppColors.accent,
-                strokeWidth: 2,
-              ),
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(
+              parent: ClampingScrollPhysics(),
             ),
-            error: (e, _) => _buildEmptyState('오류: $e', Icons.error_outline),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+            children: [
+              _buildEconomicCalendarSection(),
+              const SizedBox(height: 18),
+              _buildEconomicNewsSectionLabel(),
+              const SizedBox(height: 8),
+              ...newsAsync.when(
+                data: (news) {
+                  final sorted = [...news]
+                    ..sort((a, b) => (b.publishedAt).compareTo(a.publishedAt));
+
+                  if (sorted.isEmpty) {
+                    return [
+                      _buildInlineEmptyCard(
+                        '경제 뉴스가 아직 없습니다',
+                        Icons.business_outlined,
+                      ),
+                    ];
+                  }
+
+                  return List.generate(
+                    sorted.length,
+                    (index) => Padding(
+                      padding: EdgeInsets.only(
+                        bottom: index == sorted.length - 1 ? 0 : 6,
+                      ),
+                      child: _FinanceNewsCard(
+                        item: sorted[index],
+                        detailContextLabel: '경제 탭',
+                      ),
+                    ),
+                  );
+                },
+                loading: () => [
+                  const Center(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(vertical: 24),
+                      child: CircularProgressIndicator(
+                        color: AppColors.accent,
+                        strokeWidth: 2,
+                      ),
+                    ),
+                  ),
+                ],
+                error: (e, _) => [
+                  _buildInlineEmptyCard('오류: $e', Icons.error_outline),
+                ],
+              ),
+            ],
           ),
         );
       },
@@ -2063,8 +3068,9 @@ class _StatsSectionHeader extends StatelessWidget {
 // ─────────────────────────────────────────────
 class _FinanceNewsCard extends StatelessWidget {
   final dynamic item;
+  final String? detailContextLabel;
 
-  const _FinanceNewsCard({required this.item});
+  const _FinanceNewsCard({required this.item, this.detailContextLabel});
 
   // 더 길고 정확한 키가 먼저 와야 부분일치 방지
   static const _sourceMap = {
@@ -2408,7 +3414,11 @@ class _FinanceNewsCard extends StatelessWidget {
     return GestureDetector(
       onTap: () {
         if (item is News) {
-          showNewsDetailSheet(context, item as News);
+          showNewsDetailSheet(
+            context,
+            item as News,
+            contextLabel: detailContextLabel,
+          );
         } else if (url != null && url.isNotEmpty) {
           showUrlNewsSheet(context, title: title, url: url);
         }
@@ -2863,7 +3873,12 @@ class _FinanceKeywordTabState extends ConsumerState<_FinanceKeywordTab> {
                   delegate: SliverChildBuilderDelegate(
                     (context, i) => Padding(
                       padding: const EdgeInsets.only(bottom: 6),
-                      child: _FinanceNewsCard(item: filtered[i]),
+                      child: _FinanceNewsCard(
+                        item: filtered[i],
+                        detailContextLabel: _selectedKeyword != null
+                            ? '키워드 탭 · $_selectedKeyword'
+                            : '키워드 탭',
+                      ),
                     ),
                     childCount: filtered.length,
                   ),

@@ -4,6 +4,7 @@ import 'package:share_plus/share_plus.dart';
 import '../../../config/index.dart';
 import '../../../data/models/index.dart';
 import '../../../data/services/article_content_crawler.dart';
+import '../../../utils/text_sanitizer.dart';
 import 'news_web_view_screen.dart';
 
 class NewsContentDetailScreen extends StatefulWidget {
@@ -51,11 +52,12 @@ class _NewsContentDetailScreenState extends State<NewsContentDetailScreen> {
     super.dispose();
   }
 
-  String get _finalFallback =>
-      widget.fallbackContent ??
-      (widget.news.description.isNotEmpty
-          ? widget.news.description
-          : '내용을 불러올 수 없습니다.');
+  String get _finalFallback => sanitizeHtmlText(
+    widget.fallbackContent ??
+        (widget.news.description.isNotEmpty
+            ? widget.news.description
+            : '내용을 불러올 수 없습니다.'),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -75,8 +77,10 @@ class _NewsContentDetailScreenState extends State<NewsContentDetailScreen> {
 
         if (!isLoading && !hasError && success && data != null) {
           if (data.content.isNotEmpty) {
-            displayTitle = data.title.isEmpty ? widget.news.title : data.title;
-            displayContent = data.content;
+            displayTitle = sanitizeHtmlText(
+              data.title.isEmpty ? widget.news.title : data.title,
+            );
+            displayContent = sanitizeHtmlText(data.content);
             displayImages = data.imageUrls;
             isFallbackMode = false;
           }

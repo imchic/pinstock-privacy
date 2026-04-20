@@ -4,6 +4,7 @@ library;
 export 'alert.dart';
 export 'alert_settings.dart';
 export 'crypto_data.dart';
+export 'economic_calendar_event.dart';
 export 'filter.dart';
 export 'finance_news.dart';
 export 'keyword.dart';

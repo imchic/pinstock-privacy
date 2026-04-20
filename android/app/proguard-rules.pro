@@ -27,7 +27,7 @@
 -keep class * extends android.webkit.** { *; }
 
 # 모델 클래스 보존 (JSON 직렬화용)
--keep class com.imchic.stockhub.** { *; }
+-keep class com.imchic.pinstock.** { *; }
 
 # 일반적인 설정
 -keepclassmembers class * {

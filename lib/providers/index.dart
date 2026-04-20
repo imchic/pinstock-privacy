@@ -3,6 +3,7 @@ library;
 
 export 'alerts_providers.dart';
 export 'app_onboarding_provider.dart';
+export 'app_update_provider.dart';
 export 'connectivity_provider.dart';
 export 'finance_providers.dart';
 export 'news_providers.dart';

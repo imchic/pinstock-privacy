@@ -424,6 +424,22 @@ class NaverNewsService {
 
       final host = uri.host.replaceFirst('www.', '');
 
+      if (host == 'magazine.hankyung.com') {
+        final section = uri.pathSegments.isNotEmpty
+            ? uri.pathSegments.first
+            : '';
+        switch (section) {
+          case 'business':
+            return '한경BUSINESS';
+          case 'money':
+            return '한경MONEY';
+          case 'job-joy':
+            return '한경JOB&JOY';
+          default:
+            return '한경매거진';
+        }
+      }
+
       // 1순위: 자동 크롤링 캐시
       final cached = _pressCache.resolveSync(host);
       if (cached != null) {

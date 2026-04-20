@@ -6,6 +6,8 @@ import 'package:html/dom.dart' as html;
 import 'package:html/parser.dart' as html_parser;
 import 'package:http/http.dart' as http;
 
+import '../../utils/text_sanitizer.dart';
+
 /// 기사 본문 정보
 class ArticleContent {
   final String title;
@@ -126,6 +128,8 @@ class ArticleContentCrawler {
         return _parseDonga(doc, url);
       } else if (host.contains('mk.co.kr')) {
         return _parseMaeilKyungje(doc, url);
+      } else if (host.contains('magazine.hankyung.com')) {
+        return _parseHankyungMagazine(doc, url);
       } else if (host.contains('hankyung.com')) {
         return _parseHankyung(doc, url);
       } else if (host.contains('sedaily.com')) {
@@ -168,7 +172,11 @@ class ArticleContentCrawler {
       }
 
       debugPrint('📰 [조선일보] $title');
-      return ArticleContent(title: title, content: content, imageUrls: images);
+      return ArticleContent(
+        title: sanitizeHtmlText(title),
+        content: sanitizeHtmlText(content),
+        imageUrls: images,
+      );
     } catch (e) {
       debugPrint('⚠️ 조선일보 파서 실패: $e');
       return _parseGeneric(doc, url);
@@ -196,7 +204,11 @@ class ArticleContentCrawler {
       }
 
       debugPrint('📰 [동아일보] $title');
-      return ArticleContent(title: title, content: content, imageUrls: images);
+      return ArticleContent(
+        title: sanitizeHtmlText(title),
+        content: sanitizeHtmlText(content),
+        imageUrls: images,
+      );
     } catch (e) {
       debugPrint('⚠️ 동아일보 파서 실패: $e');
       return _parseGeneric(doc, url);
@@ -224,7 +236,11 @@ class ArticleContentCrawler {
       }
 
       debugPrint('📰 [매일경제] $title');
-      return ArticleContent(title: title, content: content, imageUrls: images);
+      return ArticleContent(
+        title: sanitizeHtmlText(title),
+        content: sanitizeHtmlText(content),
+        imageUrls: images,
+      );
     } catch (e) {
       debugPrint('⚠️ 매일경제 파서 실패: $e');
       return _parseGeneric(doc, url);
@@ -252,9 +268,64 @@ class ArticleContentCrawler {
       }
 
       debugPrint('📰 [한국경제] $title');
-      return ArticleContent(title: title, content: content, imageUrls: images);
+      return ArticleContent(
+        title: sanitizeHtmlText(title),
+        content: sanitizeHtmlText(content),
+        imageUrls: images,
+      );
     } catch (e) {
       debugPrint('⚠️ 한국경제 파서 실패: $e');
+      return _parseGeneric(doc, url);
+    }
+  }
+
+  ArticleContent _parseHankyungMagazine(html.Document doc, String url) {
+    try {
+      final contentEl =
+          doc.querySelector('div#magazineView[itemprop="articleBody"]') ??
+          doc.querySelector('div#magazineView') ??
+          doc.querySelector('article.view div.article-body');
+
+      if (contentEl == null) {
+        return _parseGeneric(doc, url);
+      }
+
+      final sanitizedContainer = contentEl.clone(true);
+      for (final selector in const [
+        'div.util-audio-area',
+        'div#audioBody',
+        'div.related-area',
+        'div.ad-area',
+        'div.ad-recommend',
+        'div.ranking-news',
+        'p.article-copy',
+        'script',
+        'style',
+        'iframe',
+      ]) {
+        for (final el in sanitizedContainer.querySelectorAll(selector)) {
+          el.remove();
+        }
+      }
+
+      final title =
+          doc.querySelector('article.view h1.news-tit')?.text.trim() ??
+          _extractTitle(doc);
+      final content = _extractMagazineParagraphs(sanitizedContainer);
+      final images = _extractImages(doc, sanitizedContainer);
+
+      if (content.isEmpty) {
+        return _parseGeneric(doc, url);
+      }
+
+      debugPrint('📰 [한경BUSINESS] $title');
+      return ArticleContent(
+        title: sanitizeHtmlText(title),
+        content: sanitizeHtmlText(content),
+        imageUrls: images,
+      );
+    } catch (e) {
+      debugPrint('⚠️ 한경BUSINESS 파서 실패: $e');
       return _parseGeneric(doc, url);
     }
   }
@@ -280,7 +351,11 @@ class ArticleContentCrawler {
       }
 
       debugPrint('📰 [서울경제] $title');
-      return ArticleContent(title: title, content: content, imageUrls: images);
+      return ArticleContent(
+        title: sanitizeHtmlText(title),
+        content: sanitizeHtmlText(content),
+        imageUrls: images,
+      );
     } catch (e) {
       debugPrint('⚠️ 서울경제 파서 실패: $e');
       return _parseGeneric(doc, url);
@@ -308,7 +383,11 @@ class ArticleContentCrawler {
       }
 
       debugPrint('📰 [전자신문] $title');
-      return ArticleContent(title: title, content: content, imageUrls: images);
+      return ArticleContent(
+        title: sanitizeHtmlText(title),
+        content: sanitizeHtmlText(content),
+        imageUrls: images,
+      );
     } catch (e) {
       debugPrint('⚠️ 전자신문 파서 실패: $e');
       return _parseGeneric(doc, url);
@@ -336,7 +415,11 @@ class ArticleContentCrawler {
       }
 
       debugPrint('📰 [이투데이] $title');
-      return ArticleContent(title: title, content: content, imageUrls: images);
+      return ArticleContent(
+        title: sanitizeHtmlText(title),
+        content: sanitizeHtmlText(content),
+        imageUrls: images,
+      );
     } catch (e) {
       debugPrint('⚠️ 이투데이 파서 실패: $e');
       return _parseGeneric(doc, url);
@@ -364,7 +447,11 @@ class ArticleContentCrawler {
       }
 
       debugPrint('📰 [SBS Biz] $title');
-      return ArticleContent(title: title, content: content, imageUrls: images);
+      return ArticleContent(
+        title: sanitizeHtmlText(title),
+        content: sanitizeHtmlText(content),
+        imageUrls: images,
+      );
     } catch (e) {
       debugPrint('⚠️ SBS Biz 파서 실패: $e');
       return _parseGeneric(doc, url);
@@ -428,7 +515,11 @@ class ArticleContentCrawler {
       }
 
       debugPrint('📰 [일반] $title');
-      return ArticleContent(title: title, content: content, imageUrls: images);
+      return ArticleContent(
+        title: sanitizeHtmlText(title),
+        content: sanitizeHtmlText(content),
+        imageUrls: images,
+      );
     } catch (e) {
       debugPrint('❌ 일반 파서 실패: $e');
       return ArticleContent.error('기사 파싱 실패');
@@ -448,7 +539,7 @@ class ArticleContentCrawler {
     if (h1 != null && h1.isNotEmpty) return h1;
 
     final titleTag = doc.querySelector('title')?.text.trim();
-    return titleTag ?? '기사 본문';
+    return sanitizeHtmlText(titleTag ?? '기사 본문');
   }
 
   static final _noiseTextPattern = RegExp(
@@ -494,7 +585,10 @@ class ArticleContentCrawler {
     final seen = <String>{};
 
     void addIfNew(String text) {
-      if (text.isNotEmpty && seen.add(text)) paragraphs.add(text);
+      final normalized = sanitizeHtmlText(text);
+      if (normalized.isNotEmpty && seen.add(normalized)) {
+        paragraphs.add(normalized);
+      }
     }
 
     // 1. p 태그 우선 추출
@@ -574,7 +668,46 @@ class ArticleContentCrawler {
       }
     }
 
-    return paragraphs.join('\n\n').replaceAll(RegExp(r'\n{3,}'), '\n\n');
+    return sanitizeHtmlText(
+      paragraphs.join('\n\n').replaceAll(RegExp(r'\n{3,}'), '\n\n'),
+    );
+  }
+
+  String _extractMagazineParagraphs(html.Element container) {
+    final paragraphs = <String>[];
+    final seen = <String>{};
+
+    void addIfNew(String text) {
+      final normalized = sanitizeHtmlText(text);
+      if (normalized.isNotEmpty &&
+          !_isNoiseText(normalized) &&
+          seen.add(normalized)) {
+        paragraphs.add(normalized);
+      }
+    }
+
+    final rawHtml = container.innerHtml
+        .replaceAll(RegExp(r'<br\s*/?>', caseSensitive: false), '\n')
+        .replaceAll(RegExp(r'</p\s*>', caseSensitive: false), '\n\n')
+        .replaceAll(RegExp(r'</div\s*>', caseSensitive: false), '\n')
+        .replaceAll(RegExp(r'</figure\s*>', caseSensitive: false), '\n');
+
+    final plainText = html_parser.parseFragment(rawHtml).text ?? '';
+    final lines = plainText
+        .split(RegExp(r'[\n\r]+'))
+        .map((s) => s.trim())
+        .where((s) => s.length > 20)
+        .toList();
+
+    for (final line in lines) {
+      addIfNew(line);
+    }
+
+    if (paragraphs.isEmpty) {
+      return _extractParagraphs(container);
+    }
+
+    return paragraphs.join('\n\n');
   }
 
   List<String> _extractImages(html.Document doc, html.Element contentEl) {

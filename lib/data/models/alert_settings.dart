@@ -36,7 +36,7 @@ class AlertSettings {
     this.fallAlertsEnabled = true,
     this.surgeThreshold = 3.0,
     this.fallThreshold = 3.0,
-    this.marketHoursEnabled = false,
+    this.marketHoursEnabled = true,
   });
 
   AlertSettings copyWith({

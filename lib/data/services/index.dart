@@ -3,6 +3,7 @@ library;
 
 export 'ai_summary_service.dart';
 export 'api_service.dart';
+export 'economic_calendar_service.dart';
 export 'finance_api_service.dart';
 export 'krx_stock_service.dart';
 export 'local_storage_service.dart';

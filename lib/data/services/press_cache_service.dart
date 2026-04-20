@@ -107,7 +107,7 @@ class PressCacheService extends ChangeNotifier {
             .get(
               url,
               headers: {
-                'User-Agent': 'Mozilla/5.0 (compatible; StockHubBot/1.0)',
+                'User-Agent': 'Mozilla/5.0 (compatible; PinStockBot/1.0)',
                 'Accept-Language': 'ko-KR,ko;q=0.9',
               },
             )

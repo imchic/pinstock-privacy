@@ -1,11 +1,11 @@
 {
-    "name": "stock_hub",
-    "short_name": "stock_hub",
+    "name": "PinStock",
+    "short_name": "PinStock",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "실시간 시장 속보와 키워드 알림을 제공하는 PinStock 앱",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

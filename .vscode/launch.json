@@ -2,7 +2,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "stock_hub (debug)",
+            "name": "pinstock (debug)",
             "request": "launch",
             "type": "dart",
             "args": [
@@ -10,7 +10,7 @@
             ]
         },
         {
-            "name": "stock_hub (release)",
+            "name": "pinstock (release)",
             "request": "launch",
             "type": "dart",
             "flutterMode": "release",
@@ -19,7 +19,7 @@
             ]
         },
         {
-            "name": "stock_hub iOS (debug)",
+            "name": "pinstock iOS (debug)",
             "request": "launch",
             "type": "dart",
             "flutterPlatform": "ios",
@@ -28,7 +28,7 @@
             ]
         },
         {
-            "name": "stock_hub iOS (release)",
+            "name": "pinstock iOS (release)",
             "request": "launch",
             "type": "dart",
             "flutterMode": "release",

@@ -10,15 +10,124 @@ import 'ad_helper.dart';
 
 /// 전체 보기 호출 횟수 카운터 (앱 세션 기준)
 int _openCount = 0;
+int _aiSummaryRefreshSuccessCount = 0;
 bool _isAppOpenAdShowing = false;
 bool _isAppOpenAdFlowRunning = false;
 bool _didShowInitialAppOpenAd = false;
 DateTime? _lastAppOpenAdShownAt;
+DateTime? _lastAiSummaryRefreshAdShownAt;
+final DateTime _sessionStartedAt = DateTime.now();
 
 /// 매 [_adInterval]번째 호출마다 인터스티셜 광고를 표시한 뒤 WebView로 이동.
 /// 광고 로드 실패 또는 타임아웃(1.5초) 시에는 광고 없이 바로 이동합니다.
 const int _adInterval = 4;
+const int _aiSummaryRefreshAdInterval = 5;
 const Duration _appOpenAdCooldown = Duration(minutes: 4);
+const Duration _aiSummaryRefreshAdCooldown = Duration(minutes: 5);
+const Duration _aiSummaryRefreshAdInitialGrace = Duration(minutes: 2);
+
+bool _canShowAiSummaryRefreshAd() {
+  if (_isAppOpenAdShowing || _isAppOpenAdFlowRunning) {
+    return false;
+  }
+
+  if (DateTime.now().difference(_sessionStartedAt) <
+      _aiSummaryRefreshAdInitialGrace) {
+    return false;
+  }
+
+  final lastShownAt = _lastAiSummaryRefreshAdShownAt;
+  if (lastShownAt == null) {
+    return true;
+  }
+
+  return DateTime.now().difference(lastShownAt) >= _aiSummaryRefreshAdCooldown;
+}
+
+Future<void> maybeShowAiSummaryRefreshAd(BuildContext context) async {
+  if (!context.mounted || !_canShowAiSummaryRefreshAd()) {
+    return;
+  }
+
+  _aiSummaryRefreshSuccessCount++;
+  final shouldShow =
+      _aiSummaryRefreshSuccessCount % _aiSummaryRefreshAdInterval == 0;
+  if (!shouldShow) {
+    return;
+  }
+
+  InterstitialAd? ad;
+  bool didRollBack = false;
+  bool didStartShowing = false;
+  final completer = Completer<void>();
+
+  void completeIfNeeded() {
+    if (!completer.isCompleted) {
+      completer.complete();
+    }
+  }
+
+  void rollbackCounter() {
+    if (didRollBack) {
+      return;
+    }
+    didRollBack = true;
+    if (_aiSummaryRefreshSuccessCount > 0) {
+      _aiSummaryRefreshSuccessCount--;
+    }
+  }
+
+  try {
+    await InterstitialAd.load(
+      adUnitId: AdHelper.interstitialAdUnitId,
+      request: const AdRequest(),
+      adLoadCallback: InterstitialAdLoadCallback(
+        onAdLoaded: (loaded) {
+          ad = loaded;
+          didStartShowing = true;
+          _lastAiSummaryRefreshAdShownAt = DateTime.now();
+          loaded.fullScreenContentCallback = FullScreenContentCallback(
+            onAdDismissedFullScreenContent: (ad) {
+              ad.dispose();
+              completeIfNeeded();
+            },
+            onAdFailedToShowFullScreenContent: (ad, _) {
+              rollbackCounter();
+              ad.dispose();
+              completeIfNeeded();
+            },
+          );
+          loaded.show();
+        },
+        onAdFailedToLoad: (_) {
+          rollbackCounter();
+          completeIfNeeded();
+        },
+      ),
+    ).timeout(
+      const Duration(milliseconds: 1500),
+      onTimeout: () {
+        rollbackCounter();
+        ad?.dispose();
+        completeIfNeeded();
+      },
+    );
+
+    if (didStartShowing) {
+      await completer.future.timeout(
+        const Duration(seconds: 8),
+        onTimeout: () {
+          rollbackCounter();
+          ad?.dispose();
+          completeIfNeeded();
+        },
+      );
+    }
+  } catch (_) {
+    rollbackCounter();
+    await ad?.dispose();
+  }
+}
 
 /// 뉴스 객체 + News 본문 화면으로 이동 (권장)
 /// 매 [_adInterval]번째 호출마다 인터스티셜 광고를 표시한 뒤 뉴스 본문으로 이동.
@@ -381,7 +490,7 @@ class _AppOpenAdBackdropScreen extends StatelessWidget {
                                 child: ClipRRect(
                                   borderRadius: BorderRadius.circular(14),
                                   child: Image.asset(
-                                    'assets/image/stockhub_logo.png',
+                                    'assets/image/pinstock_logo.png',
                                     fit: BoxFit.cover,
                                   ),
                                 ),
@@ -389,7 +498,7 @@ class _AppOpenAdBackdropScreen extends StatelessWidget {
                             ),
                             const Spacer(),
                             Text(
-                              'StockHub',
+                              'PinStock',
                               style: TextStyle(
                                 color: colors.textPrimary,
                                 fontSize: 28,
@@ -444,7 +553,7 @@ class _BackdropHeader extends StatelessWidget {
             child: ClipRRect(
               borderRadius: BorderRadius.circular(10),
               child: Image.asset(
-                'assets/image/stockhub_logo.png',
+                'assets/image/pinstock_logo.png',
                 fit: BoxFit.cover,
               ),
             ),
@@ -457,7 +566,7 @@ class _BackdropHeader extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                '스톡허브 - 내 손안의 투자 아카이브',
+                'PinStock - 내 손안의 투자 아카이브',
                 style: TextStyle(
                   color: colors.textPrimary,
                   fontSize: 17,

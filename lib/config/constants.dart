@@ -11,6 +11,9 @@ class AppConstants {
   // Google Gemini API 키 (https://aistudio.google.com/app/apikey 에서 발급)
   // ignore: do_not_use_environment
   static const String geminiApiKey = String.fromEnvironment('GEMINI_API_KEY');
+  // Financial Modeling Prep 경제 캘린더 API 키
+  // ignore: do_not_use_environment
+  static const String fmpApiKey = String.fromEnvironment('FMP_API_KEY');
   static const String newsApiBaseUrl = 'https://newsapi.org/v2';
 
   // 네이버 검색 API 설정 (https://developers.naver.com 에서 앱 등록 후 발급)
@@ -30,18 +33,18 @@ class AppConstants {
   );
 
   // 앱 정보
-  static const String appName = 'StockHub';
+  static const String appName = 'PinStock';
   static const String appVersion = '1.0.0';
   static const String supportEmail = 'imchic8@gmail.com';
   static const String supportPhone = '';
-  static const String supportTeamName = 'StockHub 운영팀';
+  static const String supportTeamName = 'PinStock 운영팀';
   static const String supportResponseHours = '평일 10:00 - 18:00 (KST)';
   static const String supportWebsiteUrl =
-      'https://imchic.github.io/stockhub-privacy/docs/index.html';
+      'https://imchic.github.io/PinStock-privacy/docs/index.html';
   static const String supportContactPageUrl =
-      'https://imchic.github.io/stockhub-privacy/docs/contact.html';
+      'https://imchic.github.io/PinStock-privacy/docs/contact.html';
   static const String privacyPolicyUrl =
-      'https://imchic.github.io/stockhub-privacy/docs/privacy_policy.html';
+      'https://imchic.github.io/PinStock-privacy/docs/privacy_policy.html';
 
   // 시간 설정
   static const int apiRefreshIntervalMinutes = 10;

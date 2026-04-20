@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:stock_hub/config/index.dart';
+import 'package:pinstock/config/index.dart';
 
 import '../../../data/models/index.dart';
 import '../../../providers/index.dart';

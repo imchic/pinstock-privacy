@@ -16,7 +16,7 @@ val keyProperties = Properties().apply {
 }
 
 android {
-    namespace = "com.imchic.stockhub"
+    namespace = "com.imchic.pinstock"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -31,7 +31,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.imchic.stockhub"
+        applicationId = "com.imchic.pinstock"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
@@ -53,7 +53,7 @@ android {
         }
     }
 
-    // APK 파일명: stock_hub-v{versionName}-{yyyyMMdd}.apk
+    // APK 파일명: pinstock-v{versionName}-{yyyyMMdd}.apk
     applicationVariants.all {
         val variant = this
         variant.outputs
@@ -61,7 +61,7 @@ android {
             .forEach { output ->
                 if (variant.buildType.name == "release") {
                     val date = SimpleDateFormat("yyyyMMdd").format(Date())
-                    output.outputFileName = "stock_hub-v${variant.versionName}-${date}.apk"
+                    output.outputFileName = "pinstock-v${variant.versionName}-${date}.apk"
                 }
             }
     }

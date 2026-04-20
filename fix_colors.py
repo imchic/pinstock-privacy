@@ -21,7 +21,7 @@ replacements = [
   (r'AppColors\.textSecondary\b', 'context.colors.textSecondary'),
 ]
 
-base = "/Users/admin/Desktop/dev/flutter/stock_hub"
+base = "/Users/admin/Desktop/dev/flutter/pinstock"
 for f in FILES:
   path = os.path.join(base, f)
   if not os.path.exists(path):

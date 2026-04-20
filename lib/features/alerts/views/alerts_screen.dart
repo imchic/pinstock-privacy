@@ -6,7 +6,7 @@ import '../../../config/index.dart';
 import '../../../data/models/index.dart' show Alert, News;
 import '../../../providers/index.dart';
 import '../../../utils/ad_service.dart';
-import '../../../utils/app_toast.dart';
+import '../../settings/views/settings_screen.dart';
 
 /// 알림 화면
 class AlertsScreen extends ConsumerStatefulWidget {
@@ -24,7 +24,7 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 12, vsync: this);
+    _tabController = TabController(length: 11, vsync: this);
   }
 
   @override
@@ -300,6 +300,20 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen>
                                   setState(() => unreadOnly = !unreadOnly),
                             ),
                             const SizedBox(width: 6),
+                            _HeaderChip(
+                              label: '알림 설정',
+                              icon: Icons.tune_rounded,
+                              active: false,
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const SettingsScreen(),
+                                  ),
+                                );
+                              },
+                            ),
+                            const SizedBox(width: 6),
                             // 액션 메뉴
                             _HeaderMoreMenu(
                               onDeleteRead: () async {
@@ -504,13 +518,6 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen>
                                         AppColors.accent,
                                         counts['economy'] ?? 0,
                                       ),
-                                      const SizedBox(width: 8),
-                                      _buildAlertPillTab(
-                                        11,
-                                        '설정',
-                                        context.colors.textSecondary,
-                                        0,
-                                      ),
                                     ],
                                   ),
                                 ),
@@ -596,7 +603,6 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen>
                 _buildFilteredTab(nasdaqAlertsProvider, '나스닥'),
                 _buildFilteredTab(coinAlertsProvider, '코인'),
                 _buildFilteredTab(economyTabAlertsProvider, '경제'),
-                _buildSettingsTab(),
               ],
             ),
           ),
@@ -682,11 +688,6 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen>
       },
     );
   }
-
-  // ─────────────────────────────────────────────────
-  // 설정 탭
-  // ─────────────────────────────────────────────────
-  Widget _buildSettingsTab() => const _SettingsTab();
 }
 
 // ─────────────────────────────────────────────────────
@@ -739,11 +740,22 @@ class _KeywordTabState extends ConsumerState<_KeywordTab> {
             ),
             const SizedBox(height: 6),
             Text(
-              '설정 탭에서 키워드를 추가해보세요',
+              '설정 화면에서 키워드를 추가해보세요',
               style: TextStyle(
                 color: context.colors.textSecondary,
                 fontSize: 12,
               ),
+            ),
+            const SizedBox(height: 12),
+            TextButton.icon(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                );
+              },
+              icon: const Icon(Icons.settings_outlined, size: 16),
+              label: const Text('설정으로 이동'),
             ),
           ],
         ),
@@ -960,393 +972,6 @@ class _KeywordTabState extends ConsumerState<_KeywordTab> {
                 ],
               ),
             ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-/// 설정 탭 — keywordController 수명을 State로 관리
-class _SettingsTab extends ConsumerStatefulWidget {
-  const _SettingsTab();
-
-  @override
-  ConsumerState<_SettingsTab> createState() => _SettingsTabState();
-}
-
-class _SettingsTabState extends ConsumerState<_SettingsTab> {
-  @override
-  void dispose() {
-    super.dispose();
-  }
-
-  Widget _buildSettingSection({
-    required IconData icon,
-    required Color iconColor,
-    required String title,
-    required String subtitle,
-    required Widget trailing,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-      decoration: BoxDecoration(
-        color: context.colors.surface,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: context.colors.border),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: iconColor.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(icon, color: iconColor, size: 18),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    color: context.colors.textPrimary,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    color: context.colors.textSecondary,
-                    fontSize: 11,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          trailing,
-        ],
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final settings = ref.watch(alertSettingsProvider);
-
-    return ListView(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-      children: [
-        // ── 속보 알림 ──
-        _buildSettingSection(
-          icon: Icons.campaign_outlined,
-          iconColor: AppColors.red,
-          title: '긴급 속보 알림',
-          subtitle: '긴급 뉴스(중요도 5단계)가 등록될 때만 알림',
-          trailing: Switch.adaptive(
-            value: settings.breakingNewsEnabled,
-            onChanged: (v) =>
-                ref.read(alertSettingsProvider.notifier).toggleBreakingNews(v),
-            activeThumbColor: AppColors.accent,
-          ),
-        ),
-        const SizedBox(height: 6),
-        Divider(color: context.colors.border, height: 24),
-
-        // ── 키워드 알림 ──
-        _buildSettingSection(
-          icon: Icons.search_outlined,
-          iconColor: AppColors.accent,
-          title: '키워드 알림',
-          subtitle: '등록한 키워드가 뉴스에 포함되면 알림',
-          trailing: Switch.adaptive(
-            value: settings.keywordAlertsEnabled,
-            onChanged: (v) =>
-                ref.read(alertSettingsProvider.notifier).toggleKeywordAlerts(v),
-            activeThumbColor: AppColors.accent,
-          ),
-        ),
-        if (settings.keywordAlertsEnabled) ...[
-          const SizedBox(height: 10),
-          // 설정 화면으로 유도
-          Consumer(
-            builder: (context, ref, _) {
-              final keywords = ref.watch(favoriteKeywordsControllerProvider);
-              return Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 12,
-                ),
-                decoration: BoxDecoration(
-                  color: context.colors.surface,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: context.colors.border),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.info_outline,
-                          size: 13,
-                          color: context.colors.textSecondary,
-                        ),
-                        const SizedBox(width: 5),
-                        Text(
-                          '키워드는 설정 화면 → 관심 키워드에서 관리합니다',
-                          style: TextStyle(
-                            color: context.colors.textSecondary,
-                            fontSize: 11,
-                          ),
-                        ),
-                      ],
-                    ),
-                    if (keywords.isNotEmpty) ...[
-                      const SizedBox(height: 10),
-                      Wrap(
-                        spacing: 6,
-                        runSpacing: 6,
-                        children: keywords
-                            .map(
-                              (kw) => Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 4,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: AppColors.accent.withAlpha(25),
-                                  borderRadius: BorderRadius.circular(6),
-                                  border: Border.all(
-                                    color: AppColors.accent.withAlpha(60),
-                                  ),
-                                ),
-                                child: Text(
-                                  kw,
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w500,
-                                    color: AppColors.accent,
-                                  ),
-                                ),
-                              ),
-                            )
-                            .toList(),
-                      ),
-                    ] else ...[
-                      const SizedBox(height: 8),
-                      Text(
-                        '등록된 키워드가 없습니다',
-                        style: TextStyle(
-                          color: context.colors.textSecondary,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              );
-            },
-          ),
-        ],
-        Divider(color: context.colors.border, height: 32),
-
-        // ── 급등 알림 ──
-        _buildSettingSection(
-          icon: Icons.trending_up,
-          iconColor: AppColors.green,
-          title: '급등 알림',
-          subtitle:
-              '시장 지수가 ${settings.surgeThreshold.toStringAsFixed(0)}% 이상 급등하면 알림',
-          trailing: Switch.adaptive(
-            value: settings.surgeAlertsEnabled,
-            onChanged: (v) =>
-                ref.read(alertSettingsProvider.notifier).toggleSurgeAlerts(v),
-            activeThumbColor: AppColors.accent,
-          ),
-        ),
-        const SizedBox(height: 6),
-        Divider(color: context.colors.border, height: 24),
-
-        // ── 폭락 알림 ──
-        _buildSettingSection(
-          icon: Icons.trending_down,
-          iconColor: AppColors.red,
-          title: '폭락 알림',
-          subtitle:
-              '시장 지수가 ${settings.fallThreshold.toStringAsFixed(0)}% 이상 폭락하면 알림',
-          trailing: Switch.adaptive(
-            value: settings.fallAlertsEnabled,
-            onChanged: (v) =>
-                ref.read(alertSettingsProvider.notifier).toggleFallAlerts(v),
-            activeThumbColor: AppColors.accent,
-          ),
-        ),
-        if (settings.surgeAlertsEnabled || settings.fallAlertsEnabled) ...[
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: BoxDecoration(
-              color: context.colors.surface,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: context.colors.border),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (settings.surgeAlertsEnabled) ...[
-                  Text(
-                    '급등 임계값',
-                    style: TextStyle(
-                      color: context.colors.textSecondary,
-                      fontSize: 11,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [2.0, 3.0, 5.0].map((threshold) {
-                      final isSelected = settings.surgeThreshold == threshold;
-                      return Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: GestureDetector(
-                          onTap: () => ref
-                              .read(alertSettingsProvider.notifier)
-                              .setSurgeThreshold(threshold),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 7,
-                            ),
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? AppColors.green.withAlpha(40)
-                                  : context.colors.surfaceLight,
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: isSelected
-                                    ? AppColors.green
-                                    : context.colors.border,
-                                width: isSelected ? 1.5 : 1.0,
-                              ),
-                            ),
-                            child: Text(
-                              '${threshold.toStringAsFixed(0)}%',
-                              style: TextStyle(
-                                color: isSelected
-                                    ? AppColors.green
-                                    : context.colors.textSecondary,
-                                fontSize: 13,
-                                fontWeight: isSelected
-                                    ? FontWeight.w600
-                                    : FontWeight.normal,
-                              ),
-                            ),
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                  if (settings.fallAlertsEnabled) const SizedBox(height: 16),
-                ],
-                if (settings.fallAlertsEnabled) ...[
-                  Text(
-                    '폭락 임계값',
-                    style: TextStyle(
-                      color: context.colors.textSecondary,
-                      fontSize: 11,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [2.0, 3.0, 5.0].map((threshold) {
-                      final isSelected = settings.fallThreshold == threshold;
-                      return Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: GestureDetector(
-                          onTap: () => ref
-                              .read(alertSettingsProvider.notifier)
-                              .setFallThreshold(threshold),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 7,
-                            ),
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? AppColors.red.withAlpha(40)
-                                  : context.colors.surfaceLight,
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: isSelected
-                                    ? AppColors.red
-                                    : context.colors.border,
-                                width: isSelected ? 1.5 : 1.0,
-                              ),
-                            ),
-                            child: Text(
-                              '${threshold.toStringAsFixed(0)}%',
-                              style: TextStyle(
-                                color: isSelected
-                                    ? AppColors.red
-                                    : context.colors.textSecondary,
-                                fontSize: 13,
-                                fontWeight: isSelected
-                                    ? FontWeight.w600
-                                    : FontWeight.normal,
-                              ),
-                            ),
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ],
-        Divider(color: context.colors.border, height: 32),
-        _buildSettingSection(
-          icon: Icons.access_time_outlined,
-          iconColor: AppColors.accent,
-          title: '장 시작/마감 알림',
-          subtitle: '코스피 09:00 개장 · 15:30 마감',
-          trailing: Switch.adaptive(
-            value: settings.marketHoursEnabled,
-            onChanged: (v) async {
-              await ref
-                  .read(alertSettingsProvider.notifier)
-                  .toggleMarketHours(v);
-              if (!context.mounted) {
-                return;
-              }
-
-              final updated = ref
-                  .read(alertSettingsProvider)
-                  .marketHoursEnabled;
-              if (v && !updated) {
-                showAppToast(
-                  context,
-                  '권한이 허용되지 않아 장 시작/마감 알림을 켜지 못했어요.',
-                  color: AppColors.red,
-                  icon: Icons.access_time_filled_rounded,
-                );
-                return;
-              }
-
-              showAppToast(
-                context,
-                updated ? '장 시작/마감 알림을 켰어요.' : '장 시작/마감 알림을 껐어요.',
-                icon: Icons.access_time_filled_rounded,
-              );
-            },
-            activeThumbColor: AppColors.accent,
           ),
         ),
       ],

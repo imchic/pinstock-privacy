@@ -157,21 +157,31 @@ void showNewsDetailSheet(
   BuildContext context,
   News news, {
   bool showBookmark = true,
+  String? contextLabel,
 }) {
   showModalBottomSheet(
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
     backgroundColor: Colors.transparent,
-    builder: (_) => _NewsDetailSheet(news: news, showBookmark: showBookmark),
+    builder: (_) => _NewsDetailSheet(
+      news: news,
+      showBookmark: showBookmark,
+      contextLabel: contextLabel,
+    ),
   );
 }
 
 class _NewsDetailSheet extends ConsumerStatefulWidget {
   final News news;
   final bool showBookmark;
+  final String? contextLabel;
 
-  const _NewsDetailSheet({required this.news, this.showBookmark = true});
+  const _NewsDetailSheet({
+    required this.news,
+    this.showBookmark = true,
+    this.contextLabel,
+  });
 
   @override
   ConsumerState<_NewsDetailSheet> createState() => _NewsDetailSheetState();
@@ -194,6 +204,7 @@ class _NewsDetailSheetState extends ConsumerState<_NewsDetailSheet> {
   @override
   Widget build(BuildContext context) {
     final news = widget.news;
+    final contextLabel = widget.contextLabel?.trim();
     final isBookmarked = ref.watch(
       bookmarkedNewsProvider.selectAsync(
         (list) => list.any((n) => n.id == news.id),
@@ -237,6 +248,41 @@ class _NewsDetailSheetState extends ConsumerState<_NewsDetailSheet> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      if (contextLabel != null && contextLabel.isNotEmpty) ...[
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 9,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.accent.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(
+                              color: AppColors.accent.withValues(alpha: 0.28),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.filter_alt_rounded,
+                                size: 12,
+                                color: AppColors.accent,
+                              ),
+                              const SizedBox(width: 5),
+                              Text(
+                                contextLabel,
+                                style: const TextStyle(
+                                  color: AppColors.accent,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
                       // 소스 + 시간 + 감정 뱃지
                       Row(
                         children: [

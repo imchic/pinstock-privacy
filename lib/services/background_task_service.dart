@@ -10,8 +10,8 @@ import 'package:workmanager/workmanager.dart';
 import '../config/constants.dart';
 
 /// WorkManager 백그라운드 태스크 이름 / ID
-const String kBgTaskName = 'stockhub_news_check';
-const String kBgTaskId = 'stockhub_periodic_news';
+const String kBgTaskName = 'PinStock_news_check';
+const String kBgTaskId = 'PinStock_periodic_news';
 const String _kUserPreferenceKey = 'user_preference';
 
 Future<void> syncBackgroundAlertTask({required bool enabled}) async {
@@ -181,13 +181,13 @@ Future<void> _showLocalNotification(String title) async {
 
   await plugin.show(
     DateTime.now().millisecondsSinceEpoch.remainder(100000),
-    'StockHub 속보',
+    'PinStock 속보',
     title,
     const NotificationDetails(
       android: AndroidNotificationDetails(
-        'stockhub_breaking',
+        'PinStock_breaking',
         '속보 알림',
-        channelDescription: 'StockHub 속보 및 시장 급변 알림',
+        channelDescription: 'PinStock 속보 및 시장 급변 알림',
         importance: Importance.high,
         priority: Priority.high,
       ),

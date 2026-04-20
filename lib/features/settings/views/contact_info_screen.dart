@@ -97,14 +97,26 @@ class ContactInfoScreen extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           _InfoCard(
+            title: '투자 유의사항',
+            child: Text(
+              '본 서비스에서 제공하는 정보는 단순 참고용이며, 특정 투자 판단을 유도하거나 종목 매수·매도를 권유하기 위한 목적이 아닙니다. 투자에 대한 최종 판단과 책임은 이용자 본인에게 있습니다.',
+              style: TextStyle(
+                fontSize: 13,
+                height: 1.6,
+                color: context.colors.textSecondary,
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+          _InfoCard(
             title: '정책 링크',
             child: Column(
               children: [
                 _ActionRow(
                   icon: Icons.public_rounded,
                   label: '공식 안내 페이지',
-                  value: AppConstants.supportWebsiteUrl,
                   actionLabel: '열기',
+                  showValue: false,
                   onTap: () => _openPage(
                     context,
                     title: '공식 안내',
@@ -115,8 +127,8 @@ class ContactInfoScreen extends StatelessWidget {
                 _ActionRow(
                   icon: Icons.contact_page_outlined,
                   label: '문의 페이지',
-                  value: AppConstants.supportContactPageUrl,
                   actionLabel: '열기',
+                  showValue: false,
                   onTap: () => _openPage(
                     context,
                     title: '문의 페이지',
@@ -127,8 +139,8 @@ class ContactInfoScreen extends StatelessWidget {
                 _ActionRow(
                   icon: Icons.privacy_tip_outlined,
                   label: '개인정보처리방침',
-                  value: AppConstants.privacyPolicyUrl,
                   actionLabel: '열기',
+                  showValue: false,
                   onTap: () => _openPage(
                     context,
                     title: '개인정보처리방침',
@@ -248,15 +260,17 @@ class _InfoRow extends StatelessWidget {
 class _ActionRow extends StatelessWidget {
   final IconData icon;
   final String label;
-  final String value;
+  final String? value;
   final String actionLabel;
+  final bool showValue;
   final VoidCallback onTap;
 
   const _ActionRow({
     required this.icon,
     required this.label,
-    required this.value,
+    this.value,
     required this.actionLabel,
+    this.showValue = true,
     required this.onTap,
   });
 
@@ -284,15 +298,17 @@ class _ActionRow extends StatelessWidget {
                     color: context.colors.textSecondary,
                   ),
                 ),
-                const SizedBox(height: 2),
-                SelectableText(
-                  value,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: context.colors.textPrimary,
+                if (showValue && value != null) ...[
+                  const SizedBox(height: 2),
+                  SelectableText(
+                    value!,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: context.colors.textPrimary,
+                    ),
                   ),
-                ),
+                ],
               ],
             ),
           ),

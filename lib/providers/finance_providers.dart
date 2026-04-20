@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/models/index.dart';
 import '../data/services/ai_summary_service.dart';
+import '../data/services/economic_calendar_service.dart';
 import '../data/services/krx_stock_service.dart';
 import '../data/services/market_data_service.dart';
 import '../models/finance_news_filter.dart';
@@ -28,6 +29,21 @@ final aiSummaryServiceProvider = Provider<AiSummaryService>((ref) {
 /// KrxStockService 인스턴스 프로바이더
 final krxStockServiceProvider = Provider<KrxStockService>((ref) {
   return KrxStockService();
+});
+
+/// EconomicCalendarService 인스턴스 프로바이더
+final economicCalendarServiceProvider = Provider<EconomicCalendarService>((
+  ref,
+) {
+  return EconomicCalendarService();
+});
+
+/// 실시간 경제 캘린더 프로바이더
+final economicCalendarProvider = FutureProvider<List<EconomicCalendarEvent>>((
+  ref,
+) async {
+  ref.keepAlive();
+  return ref.read(economicCalendarServiceProvider).fetchUpcomingEvents();
 });
 
 /// KRX 실제 상장 종목 목록 (코스피 + 코스닥)
@@ -81,10 +97,10 @@ final marketIndicesProvider = StreamProvider.autoDispose<List<MarketIndex>>((
   }
 });
 
-/// 전쟁·지정학 충돌 뉴스 — allFinanceNewsProvider에서 필터링
-final warNewsProvider = FutureProvider<List<FinanceNews>>((ref) async {
+/// 전쟁·지정학 충돌 뉴스 — stockMarketNewsProvider에서 직접 필터링 (News 타입 유지)
+final warNewsProvider = FutureProvider<List<News>>((ref) async {
   ref.keepAlive();
-  final all = await ref.watch(allFinanceNewsProvider.future);
+  final all = await ref.watch(stockMarketNewsProvider.future);
   return all
       .where(
         (n) => _containsAnyStr(n.title + n.description, [

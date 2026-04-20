@@ -3,8 +3,8 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pinstock/features/trends/views/trends_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:stock_hub/features/trends/views/trends_screen.dart';
 
 import '../../../config/index.dart';
 import '../../../data/models/index.dart';
@@ -15,6 +15,7 @@ import '../../../features/finance/views/finance_screen.dart';
 import '../../../features/settings/views/settings_screen.dart';
 import '../../../providers/index.dart';
 import '../../../services/app_onboarding_service.dart';
+import '../../../services/app_update_service.dart';
 import '../../../services/notification_service.dart';
 import '../../../utils/ad_service.dart';
 
@@ -25,6 +26,11 @@ const _kBannerCountKey = 'banner_count_v1';
 
 /// 저긴급 타입은 배너 표시 안 함 (알림 탭에서만 조용히 확인)
 const _silentAlertTypes = {'keyword_match', 'finance_economic'};
+const _financeTabIndex = 0;
+const _economicTabIndex = 1;
+const _trendsTabIndex = 2;
+const _alertsTabIndex = 3;
+const _bookmarkTabIndex = 4;
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -55,6 +61,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     _deepLinkSub = NotificationService.deepLinkStream.listen(_handleDeepLink);
     // 속보·키워드 감시 시작 — 새 Alert 발생 시 인앱 배너 표시
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.listenManual(appUpdateStatusProvider, (_, next) {
+        next.whenData((status) {
+          if (status.hasJustUpdated) {
+            _showAppUpdateBanner(status);
+          }
+        });
+      });
+      ref.listenManual(storeUpdateStatusProvider, (_, next) {
+        next.whenData((status) {
+          if (status.isUpdateAvailable) {
+            _showStoreUpdateBanner(status);
+          }
+        });
+      });
       ref.listenManual(breakingNewsWatcherProvider, (_, next) {
         next.whenData((alert) => _showAlertBanner(alert));
       });
@@ -118,7 +138,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       if (payload.startsWith('http://') || payload.startsWith('https://')) {
         showUrlNewsSheet(context, title: '뉴스', url: payload);
       } else {
-        setState(() => _selectedTabIndex = 2);
+        setState(() => _selectedTabIndex = _alertsTabIndex);
       }
     }
   }
@@ -147,6 +167,152 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   String _dateStr(DateTime dt) =>
       '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
+
+  void _showAppUpdateBanner(AppUpdateStatus status) {
+    if (!mounted) return;
+
+    final previousVersion = status.previousVersion;
+    if (previousVersion == null) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        padding: EdgeInsets.zero,
+        duration: const Duration(seconds: 5),
+        content: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: AppColors.accent.withValues(alpha: 0.96),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: [
+              const Icon(
+                Icons.system_update_alt,
+                color: Colors.white,
+                size: 18,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      '앱 업데이트 완료',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '$previousVersion -> ${status.currentVersion}',
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    if (status.releaseSummary != null) ...[
+                      const SizedBox(height: 3),
+                      Text(
+                        status.releaseSummary!,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showStoreUpdateBanner(StoreUpdateStatus status) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        padding: EdgeInsets.zero,
+        duration: const Duration(seconds: 6),
+        content: GestureDetector(
+          onTap: () async {
+            ScaffoldMessenger.of(context).hideCurrentSnackBar();
+            final launched = await AppUpdateService.launchUpdate();
+            if (!mounted || launched) return;
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(const SnackBar(content: Text('업데이트 화면을 열지 못했습니다.')));
+          },
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0F172A).withValues(alpha: 0.96),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.download_rounded,
+                  color: Colors.white,
+                  size: 18,
+                ),
+                const SizedBox(width: 10),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        '새 버전 사용 가능',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      SizedBox(height: 2),
+                      Text(
+                        '터치해서 최신 버전으로 업데이트하세요.',
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Text(
+                  status.immediateUpdateAllowed ? '업데이트' : '스토어',
+                  style: const TextStyle(
+                    color: Color(0xFF7DD3FC),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
   void _showAlertBanner(Alert alert) {
     if (!mounted) return;
@@ -213,7 +379,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             if (hasUrl) {
               showUrlNewsSheet(context, title: headline, url: alert.newsUrl);
             } else {
-              setState(() => _selectedTabIndex = 1);
+              setState(() => _selectedTabIndex = _alertsTabIndex);
             }
           },
           child: Container(
@@ -321,7 +487,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(9),
                   child: Image.asset(
-                    'assets/image/stockhub_logo.png',
+                    'assets/image/pinstock_logo.png',
                     fit: BoxFit.cover,
                   ),
                 ),
@@ -331,7 +497,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 text: TextSpan(
                   children: [
                     TextSpan(
-                      text: 'Stock',
+                      text: 'Pin',
                       style: TextStyle(
                         color: context.colors.textPrimary,
                         fontSize: 19,
@@ -340,7 +506,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                       ),
                     ),
                     const TextSpan(
-                      text: 'Hub',
+                      text: 'Stock',
                       style: TextStyle(
                         color: AppColors.accent,
                         fontSize: 19,
@@ -377,12 +543,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           ),
           // 알림 벨 버튼
           GestureDetector(
-            onTap: () => setState(() => _selectedTabIndex = 2),
+            onTap: () => setState(() => _selectedTabIndex = _alertsTabIndex),
             child: Container(
               width: 38,
               height: 38,
               decoration: BoxDecoration(
-                color: _selectedTabIndex == 2
+                color: _selectedTabIndex == _alertsTabIndex
                     ? AppColors.orange.withValues(alpha: 0.12)
                     : context.colors.surfaceLight,
                 borderRadius: BorderRadius.circular(12),
@@ -392,10 +558,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 clipBehavior: Clip.none,
                 children: [
                   Icon(
-                    _selectedTabIndex == 2
+                    _selectedTabIndex == _alertsTabIndex
                         ? Icons.notifications
                         : Icons.notifications_outlined,
-                    color: _selectedTabIndex == 2
+                    color: _selectedTabIndex == _alertsTabIndex
                         ? AppColors.orange
                         : context.colors.textSecondary,
                     size: 20,
@@ -425,6 +591,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   Widget _buildBottomNav() {
     const tabs = [
       (Icons.trending_up, '금융', AppColors.green),
+      (Icons.account_balance_rounded, '경제', Color(0xFF6366F1)),
       (Icons.bar_chart_rounded, '통계', Color(0xFF9B59B6)),
       (Icons.notifications_outlined, '알림', AppColors.orange),
       (Icons.bookmark_border_rounded, '저장', AppColors.accent),
@@ -441,84 +608,93 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         ),
       ),
       padding: EdgeInsets.fromLTRB(
-        20,
-        12,
-        20,
-        MediaQuery.of(context).padding.bottom > 0 ? 12 : 20,
+        10,
+        10,
+        10,
+        MediaQuery.of(context).padding.bottom > 0 ? 10 : 16,
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: List.generate(tabs.length, (i) {
           final (icon, label, color) = tabs[i];
           final isSelected = _selectedTabIndex == i;
-          final showBadge = i == 2 && unreadCount > 0;
-          return GestureDetector(
-            onTap: () => setState(() => _selectedTabIndex = i),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 9),
-              decoration: BoxDecoration(
-                color: isSelected
-                    ? color.withValues(alpha: 0.15)
-                    : Colors.transparent,
-                borderRadius: BorderRadius.circular(24),
-                border: isSelected
-                    ? Border.all(color: color.withValues(alpha: 0.4))
-                    : null,
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Stack(
-                    clipBehavior: Clip.none,
+          final showBadge = i == _alertsTabIndex && unreadCount > 0;
+          return Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: GestureDetector(
+                onTap: () => setState(() => _selectedTabIndex = i),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  curve: Curves.easeInOut,
+                  padding: const EdgeInsets.symmetric(vertical: 9),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? color.withValues(alpha: 0.15)
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(18),
+                    border: isSelected
+                        ? Border.all(color: color.withValues(alpha: 0.35))
+                        : Border.all(color: Colors.transparent),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(
-                        icon,
-                        size: 18,
-                        color: isSelected
-                            ? color
-                            : context.colors.textSecondary,
-                      ),
-                      if (showBadge)
-                        Positioned(
-                          top: -4,
-                          right: -6,
-                          child: Container(
-                            padding: const EdgeInsets.all(2),
-                            constraints: const BoxConstraints(
-                              minWidth: 14,
-                              minHeight: 14,
-                            ),
-                            decoration: const BoxDecoration(
-                              color: AppColors.red,
-                              shape: BoxShape.circle,
-                            ),
-                            child: Text(
-                              unreadCount > 9 ? '9+' : '$unreadCount',
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 8,
-                                fontWeight: FontWeight.w800,
+                      Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          Icon(
+                            icon,
+                            size: 18,
+                            color: isSelected
+                                ? color
+                                : context.colors.textSecondary,
+                          ),
+                          if (showBadge)
+                            Positioned(
+                              top: -4,
+                              right: -8,
+                              child: Container(
+                                padding: const EdgeInsets.all(2),
+                                constraints: const BoxConstraints(
+                                  minWidth: 14,
+                                  minHeight: 14,
+                                ),
+                                decoration: const BoxDecoration(
+                                  color: AppColors.red,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Text(
+                                  unreadCount > 9 ? '9+' : '$unreadCount',
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 8,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
                               ),
                             ),
-                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 5),
+                      Text(
+                        label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: isSelected
+                              ? color
+                              : context.colors.textSecondary,
+                          fontSize: 11,
+                          fontWeight: isSelected
+                              ? FontWeight.w700
+                              : FontWeight.w500,
+                          letterSpacing: -0.2,
                         ),
+                      ),
                     ],
                   ),
-                  const SizedBox(width: 6),
-                  Text(
-                    label,
-                    style: TextStyle(
-                      color: isSelected ? color : context.colors.textSecondary,
-                      fontSize: 12,
-                      fontWeight: isSelected
-                          ? FontWeight.w700
-                          : FontWeight.w500,
-                      letterSpacing: -0.2,
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
           );
@@ -529,13 +705,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   Widget _buildBody() {
     switch (_selectedTabIndex) {
-      case 0:
+      case _financeTabIndex:
         return const FinanceScreen();
-      case 1:
+      case _economicTabIndex:
+        return const FinanceScreen(showEconomicOnly: true);
+      case _trendsTabIndex:
         return const TrendsScreen();
-      case 2:
+      case _alertsTabIndex:
         return const AlertsScreen();
-      case 3:
+      case _bookmarkTabIndex:
         return const BookmarkScreen();
       default:
         return const FinanceScreen();
