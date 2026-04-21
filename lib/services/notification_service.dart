@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -10,6 +11,7 @@ import 'package:timezone/data/latest_all.dart' as tz_data;
 import 'package:timezone/standalone.dart' as tz;
 
 import '../data/models/index.dart';
+import 'market_calendar_service.dart';
 
 /// 로컬 푸시 알림 서비스
 ///
@@ -21,9 +23,10 @@ class NotificationService {
 
   static final _plugin = FlutterLocalNotificationsPlugin();
   static const _androidRecoveryChannel = MethodChannel(
-    'com.imchic.pinstock/notification_cache',
+    'com.imchic.stockhub/notification_cache',
   );
   static const _marketAlertsScheduledKey = 'market_alerts_scheduled';
+  static const _marketAlertNotificationIdsKey = 'market_alert_notification_ids';
   static const _deepLinkDedupWindow = Duration(seconds: 2);
 
   // ─── 딥링크 스트림 ─────────────────────────────────
@@ -74,37 +77,22 @@ class NotificationService {
   static const _marketChannelId = 'PinStock_market';
   static const _marketChannelName = '장 시작/마감 알림';
   static const _marketChannelDesc = '코스피·NXT 주요 장 시작 및 마감 사전 알림';
-  static const _nxtOpenFiveMinId = 1001;
-  static const _nxtOpenOneMinId = 1002;
-  static const _nxtOpenId = 1003;
-  static const _marketOpenFiveMinId = 1004;
-  static const _marketOpenOneMinId = 1005;
-  static const _marketOpenId = 1006;
-  static const _marketCloseFiveMinId = 1007;
-  static const _marketCloseOneMinId = 1008;
-  static const _marketCloseId = 1009;
-  static const _nxtClosingAuctionFiveMinId = 1010;
-  static const _nxtClosingAuctionOneMinId = 1011;
-  static const _nxtClosingAuctionId = 1012;
-  static const _nxtAfterMarketFiveMinId = 1013;
-  static const _nxtAfterMarketOneMinId = 1014;
-  static const _nxtAfterMarketId = 1015;
-  static const _marketAlertIds = <int>[
-    _nxtOpenFiveMinId,
-    _nxtOpenOneMinId,
-    _nxtOpenId,
-    _marketOpenFiveMinId,
-    _marketOpenOneMinId,
-    _marketOpenId,
-    _marketCloseFiveMinId,
-    _marketCloseOneMinId,
-    _marketCloseId,
-    _nxtClosingAuctionFiveMinId,
-    _nxtClosingAuctionOneMinId,
-    _nxtClosingAuctionId,
-    _nxtAfterMarketFiveMinId,
-    _nxtAfterMarketOneMinId,
-    _nxtAfterMarketId,
+  static const _legacyMarketAlertIds = <int>[
+    1001,
+    1002,
+    1003,
+    1004,
+    1005,
+    1006,
+    1007,
+    1008,
+    1009,
+    1010,
+    1011,
+    1012,
+    1013,
+    1014,
+    1015,
   ];
 
   static const _marketChannel = AndroidNotificationChannel(
@@ -249,6 +237,20 @@ class NotificationService {
     return granted ?? false;
   }
 
+  static Future<bool> canScheduleExactAlarms() async {
+    if (!Platform.isAndroid) {
+      return true;
+    }
+
+    final granted = await _plugin
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >()
+        ?.canScheduleExactNotifications();
+
+    return granted ?? false;
+  }
+
   static Future<bool> requestBatteryOptimizationExemption() async {
     if (!Platform.isAndroid) {
       return true;
@@ -285,6 +287,21 @@ class NotificationService {
     await prefs.setBool(_marketAlertsScheduledKey, scheduled);
   }
 
+  static Future<Set<int>> _getScheduledMarketAlertIds() async {
+    final prefs = await SharedPreferences.getInstance();
+    final values =
+        prefs.getStringList(_marketAlertNotificationIdsKey) ?? const <String>[];
+    return values.map(int.parse).toSet();
+  }
+
+  static Future<void> _setScheduledMarketAlertIds(Set<int> ids) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(
+      _marketAlertNotificationIdsKey,
+      ids.map((id) => id.toString()).toList()..sort(),
+    );
+  }
+
   static Future<void> _clearAndroidScheduledNotificationsCache() async {
     if (!Platform.isAndroid) {
       return;
@@ -295,43 +312,57 @@ class NotificationService {
     );
   }
 
-  static Future<void> _cancelMarketAlertsNatively() async {
+  static Future<void> _cancelNotificationIdsNatively(Iterable<int> ids) async {
     if (!Platform.isAndroid) {
       return;
     }
 
     await _androidRecoveryChannel.invokeMethod<void>(
       'cancelScheduledNotificationIds',
-      <String, Object>{'ids': _marketAlertIds},
+      <String, Object>{'ids': ids.toList()},
     );
   }
 
-  static Future<void> _scheduleDailyMarketAlert({
+  static int _marketAlertNotificationId(DateTime date, int slot) {
+    final compactDate =
+        (date.year - 2000) * 10000 + date.month * 100 + date.day;
+    return 30000000 + compactDate * 100 + slot;
+  }
+
+  static Future<bool> _scheduleMarketAlert({
     required int id,
     required String title,
     required String body,
     required tz.Location location,
     required tz.TZDateTime now,
+    required DateTime date,
     required int hour,
     required int minute,
     required NotificationDetails details,
   }) async {
     var scheduledAt = tz.TZDateTime(
       location,
-      now.year,
-      now.month,
-      now.day,
+      date.year,
+      date.month,
+      date.day,
       hour,
       minute,
     );
 
     final isSameMinuteToday =
-        now.hour == hour && now.minute == minute && now.second < 55;
+        date.year == now.year &&
+        date.month == now.month &&
+        date.day == now.day &&
+        now.hour == hour &&
+        now.minute == minute &&
+        now.second < 55;
 
     if (isSameMinuteToday) {
       scheduledAt = now.add(const Duration(seconds: 3));
-    } else if (scheduledAt.isBefore(now)) {
-      scheduledAt = scheduledAt.add(const Duration(days: 1));
+    }
+
+    if (!scheduledAt.isAfter(now.add(const Duration(seconds: 2)))) {
+      return false;
     }
 
     await _plugin.zonedSchedule(
@@ -343,8 +374,34 @@ class NotificationService {
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       uiLocalNotificationDateInterpretation:
           UILocalNotificationDateInterpretation.absoluteTime,
-      matchDateTimeComponents: DateTimeComponents.time,
     );
+
+    return true;
+  }
+
+  static Future<void> _scheduleMarketAlertDefinition({
+    required _MarketAlertDefinition definition,
+    required DateTime date,
+    required tz.Location location,
+    required tz.TZDateTime now,
+    required NotificationDetails details,
+    required Set<int> scheduledIds,
+  }) async {
+    final notificationId = _marketAlertNotificationId(date, definition.slot);
+    final didSchedule = await _scheduleMarketAlert(
+      id: notificationId,
+      title: definition.title,
+      body: definition.body,
+      location: location,
+      now: now,
+      date: date,
+      hour: definition.hour,
+      minute: definition.minute,
+      details: details,
+    );
+    if (didSchedule) {
+      scheduledIds.add(notificationId);
+    }
   }
 
   static Future<void> _runWithRecoveredAndroidScheduleCache(
@@ -362,12 +419,129 @@ class NotificationService {
     }
   }
 
-  /// NXT와 코스피 주요 장 시작·마감 알림을 매일 반복 예약
-  static Future<void> scheduleMarketAlerts() async {
+  static const _marketAlertDefinitions = <_MarketAlertDefinition>[
+    _MarketAlertDefinition(
+      slot: 1,
+      hour: 7,
+      minute: 55,
+      title: 'NXT 장 시작 5분 전',
+      body: 'NXT 프리마켓이 5분 뒤 시작됩니다.',
+    ),
+    _MarketAlertDefinition(
+      slot: 2,
+      hour: 7,
+      minute: 59,
+      title: 'NXT 장 시작 1분 전',
+      body: 'NXT 프리마켓이 1분 뒤 시작됩니다.',
+    ),
+    _MarketAlertDefinition(
+      slot: 3,
+      hour: 8,
+      minute: 0,
+      title: 'NXT 장 시작',
+      body: 'NXT 프리마켓이 시작됐습니다.',
+    ),
+    _MarketAlertDefinition(
+      slot: 4,
+      hour: 8,
+      minute: 55,
+      title: '코스피 개장 5분 전',
+      body: '코스피 정규장이 5분 뒤 시작됩니다.',
+    ),
+    _MarketAlertDefinition(
+      slot: 5,
+      hour: 8,
+      minute: 59,
+      title: '코스피 개장 1분 전',
+      body: '코스피 정규장이 1분 뒤 시작됩니다.',
+    ),
+    _MarketAlertDefinition(
+      slot: 6,
+      hour: 9,
+      minute: 0,
+      title: '코스피 개장',
+      body: '코스피 정규장이 시작됐습니다.',
+    ),
+    _MarketAlertDefinition(
+      slot: 7,
+      hour: 15,
+      minute: 25,
+      title: '코스피 마감 5분 전',
+      body: '코스피 정규장이 5분 뒤 마감됩니다.',
+    ),
+    _MarketAlertDefinition(
+      slot: 8,
+      hour: 15,
+      minute: 29,
+      title: '코스피 마감 1분 전',
+      body: '코스피 정규장이 1분 뒤 마감됩니다.',
+    ),
+    _MarketAlertDefinition(
+      slot: 9,
+      hour: 15,
+      minute: 30,
+      title: '코스피 마감',
+      body: '코스피 정규장이 마감됐습니다.',
+    ),
+    _MarketAlertDefinition(
+      slot: 10,
+      hour: 15,
+      minute: 25,
+      title: 'NXT 종가매매 시작 5분 전',
+      body: 'NXT 종가매매가 5분 뒤 시작됩니다.',
+    ),
+    _MarketAlertDefinition(
+      slot: 11,
+      hour: 15,
+      minute: 29,
+      title: 'NXT 종가매매 시작 1분 전',
+      body: 'NXT 종가매매가 1분 뒤 시작됩니다.',
+    ),
+    _MarketAlertDefinition(
+      slot: 12,
+      hour: 15,
+      minute: 30,
+      title: 'NXT 종가매매 시작',
+      body: 'NXT 종가매매가 시작됐습니다.',
+    ),
+    _MarketAlertDefinition(
+      slot: 13,
+      hour: 15,
+      minute: 35,
+      title: 'NXT 애프터마켓 시작 5분 전',
+      body: 'NXT 애프터마켓이 5분 뒤 시작됩니다.',
+    ),
+    _MarketAlertDefinition(
+      slot: 14,
+      hour: 15,
+      minute: 39,
+      title: 'NXT 애프터마켓 시작 1분 전',
+      body: 'NXT 애프터마켓이 1분 뒤 시작됩니다.',
+    ),
+    _MarketAlertDefinition(
+      slot: 15,
+      hour: 15,
+      minute: 40,
+      title: 'NXT 애프터마켓 시작',
+      body: 'NXT 애프터마켓이 시작됐습니다.',
+    ),
+  ];
+
+  /// NXT와 코스피 주요 장 시작·마감 알림을 거래일에만 예약
+  static Future<bool> scheduleMarketAlerts() async {
+    if (!await canScheduleExactAlarms()) {
+      await _setScheduledMarketAlertIds(<int>{});
+      await _setMarketAlertsScheduled(false);
+      return false;
+    }
+
     try {
+      await cancelMarketAlerts();
+
       await _runWithRecoveredAndroidScheduleCache(() async {
         final seoul = tz.getLocation('Asia/Seoul');
         final now = tz.TZDateTime.now(seoul);
+        final scheduledIds = <int>{};
 
         const notifDetails = NotificationDetails(
           android: AndroidNotificationDetails(
@@ -382,185 +556,43 @@ class NotificationService {
           ),
         );
 
-        await _scheduleDailyMarketAlert(
-          id: _nxtOpenFiveMinId,
-          title: 'NXT 장 시작 5분 전',
-          body: '5분 뒤 NXT 프리마켓이 시작합니다. (08:00)',
-          location: seoul,
-          now: now,
-          hour: 7,
-          minute: 55,
-          details: notifDetails,
+        final tradingDays = MarketCalendarService.upcomingKoreanTradingDays(
+          startDate: now,
         );
+        for (final tradingDay in tradingDays) {
+          for (final definition in _marketAlertDefinitions) {
+            await _scheduleMarketAlertDefinition(
+              definition: definition,
+              date: tradingDay,
+              location: seoul,
+              now: now,
+              details: notifDetails,
+              scheduledIds: scheduledIds,
+            );
+          }
+        }
 
-        await _scheduleDailyMarketAlert(
-          id: _nxtOpenOneMinId,
-          title: 'NXT 장 시작 1분 전',
-          body: '1분 뒤 NXT 프리마켓이 시작합니다. (08:00)',
-          location: seoul,
-          now: now,
-          hour: 7,
-          minute: 59,
-          details: notifDetails,
-        );
-
-        await _scheduleDailyMarketAlert(
-          id: _nxtOpenId,
-          title: 'NXT 장 시작',
-          body: 'NXT 프리마켓이 시작됐습니다. (08:00)',
-          location: seoul,
-          now: now,
-          hour: 8,
-          minute: 0,
-          details: notifDetails,
-        );
-
-        await _scheduleDailyMarketAlert(
-          id: _marketOpenFiveMinId,
-          title: '코스피 개장 5분 전',
-          body: '5분 뒤 주식 시장이 개장합니다. (KRX 09:00)',
-          location: seoul,
-          now: now,
-          hour: 8,
-          minute: 55,
-          details: notifDetails,
-        );
-
-        await _scheduleDailyMarketAlert(
-          id: _marketOpenOneMinId,
-          title: '코스피 개장 1분 전',
-          body: '1분 뒤 주식 시장이 개장합니다. (KRX 09:00)',
-          location: seoul,
-          now: now,
-          hour: 8,
-          minute: 59,
-          details: notifDetails,
-        );
-
-        await _scheduleDailyMarketAlert(
-          id: _marketOpenId,
-          title: '코스피 개장',
-          body: '주식 시장이 개장했습니다. (KRX 09:00)',
-          location: seoul,
-          now: now,
-          hour: 9,
-          minute: 0,
-          details: notifDetails,
-        );
-
-        await _scheduleDailyMarketAlert(
-          id: _marketCloseFiveMinId,
-          title: '코스피 마감 5분 전',
-          body: '5분 뒤 주식 시장이 마감됩니다. (KRX 15:30)',
-          location: seoul,
-          now: now,
-          hour: 15,
-          minute: 25,
-          details: notifDetails,
-        );
-
-        await _scheduleDailyMarketAlert(
-          id: _marketCloseOneMinId,
-          title: '코스피 마감 1분 전',
-          body: '1분 뒤 주식 시장이 마감됩니다. (KRX 15:30)',
-          location: seoul,
-          now: now,
-          hour: 15,
-          minute: 29,
-          details: notifDetails,
-        );
-
-        await _scheduleDailyMarketAlert(
-          id: _marketCloseId,
-          title: '코스피 마감',
-          body: '주식 시장이 마감됐습니다. (KRX 15:30)',
-          location: seoul,
-          now: now,
-          hour: 15,
-          minute: 30,
-          details: notifDetails,
-        );
-
-        await _scheduleDailyMarketAlert(
-          id: _nxtClosingAuctionFiveMinId,
-          title: 'NXT 종가매매 시작 5분 전',
-          body: '5분 뒤 NXT 종가매매시장이 시작합니다. (15:30)',
-          location: seoul,
-          now: now,
-          hour: 15,
-          minute: 25,
-          details: notifDetails,
-        );
-
-        await _scheduleDailyMarketAlert(
-          id: _nxtClosingAuctionOneMinId,
-          title: 'NXT 종가매매 시작 1분 전',
-          body: '1분 뒤 NXT 종가매매시장이 시작합니다. (15:30)',
-          location: seoul,
-          now: now,
-          hour: 15,
-          minute: 29,
-          details: notifDetails,
-        );
-
-        await _scheduleDailyMarketAlert(
-          id: _nxtClosingAuctionId,
-          title: 'NXT 종가매매 시작',
-          body: 'NXT 종가매매시장이 시작됐습니다. (15:30)',
-          location: seoul,
-          now: now,
-          hour: 15,
-          minute: 30,
-          details: notifDetails,
-        );
-
-        await _scheduleDailyMarketAlert(
-          id: _nxtAfterMarketFiveMinId,
-          title: 'NXT 애프터마켓 시작 5분 전',
-          body: '5분 뒤 NXT 애프터마켓이 시작합니다. (15:40)',
-          location: seoul,
-          now: now,
-          hour: 15,
-          minute: 35,
-          details: notifDetails,
-        );
-
-        await _scheduleDailyMarketAlert(
-          id: _nxtAfterMarketOneMinId,
-          title: 'NXT 애프터마켓 시작 1분 전',
-          body: '1분 뒤 NXT 애프터마켓이 시작합니다. (15:40)',
-          location: seoul,
-          now: now,
-          hour: 15,
-          minute: 39,
-          details: notifDetails,
-        );
-
-        await _scheduleDailyMarketAlert(
-          id: _nxtAfterMarketId,
-          title: 'NXT 애프터마켓 시작',
-          body: 'NXT 애프터마켓이 시작됐습니다. (15:40)',
-          location: seoul,
-          now: now,
-          hour: 15,
-          minute: 40,
-          details: notifDetails,
-        );
+        await _setScheduledMarketAlertIds(scheduledIds);
+        await _setMarketAlertsScheduled(scheduledIds.isNotEmpty);
       });
-      await _setMarketAlertsScheduled(true);
-    } catch (_) {
+      return await _wasMarketAlertsScheduled();
+    } catch (error, stackTrace) {
+      debugPrint('Failed to schedule market alerts: $error');
+      debugPrintStack(stackTrace: stackTrace);
+      await _setScheduledMarketAlertIds(<int>{});
+      await _setMarketAlertsScheduled(false);
       // 스케줄 실패는 앱 구동에 영향 없음
+      return false;
     }
   }
 
   /// 장 시작/마감 예약 알림 취소
   static Future<void> cancelMarketAlerts() async {
-    if (!await _wasMarketAlertsScheduled()) {
-      return;
-    }
+    final storedIds = await _getScheduledMarketAlertIds();
+    final targetIds = {..._legacyMarketAlertIds, ...storedIds};
 
     try {
-      for (final id in _marketAlertIds) {
+      for (final id in targetIds) {
         await _plugin.cancel(id);
       }
     } on PlatformException catch (error) {
@@ -569,8 +601,9 @@ class NotificationService {
       }
 
       await _clearAndroidScheduledNotificationsCache();
-      await _cancelMarketAlertsNatively();
+      await _cancelNotificationIdsNatively(targetIds);
     } finally {
+      await _setScheduledMarketAlertIds(<int>{});
       await _setMarketAlertsScheduled(false);
     }
   }
@@ -777,4 +810,20 @@ class NotificationService {
     final body = alert.message.isNotEmpty ? alert.message : alert.title;
     return (title, body);
   }
+}
+
+class _MarketAlertDefinition {
+  final int slot;
+  final int hour;
+  final int minute;
+  final String title;
+  final String body;
+
+  const _MarketAlertDefinition({
+    required this.slot,
+    required this.hour,
+    required this.minute,
+    required this.title,
+    required this.body,
+  });
 }

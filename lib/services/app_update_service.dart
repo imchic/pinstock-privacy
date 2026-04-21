@@ -44,7 +44,7 @@ class AppUpdateService {
   static const String _installedVersionKey = 'installed_app_version';
   static const String _lastUpdatedFromKey = 'last_updated_from_version';
   static const String _lastUpdatedAtKey = 'last_updated_at';
-  static const String _androidPackageName = 'com.imchic.pinstock';
+  static const String _androidPackageName = 'com.imchic.stockhub';
 
   static const Map<String, List<String>> _releaseNotesByVersion = {
     '1.0.0+14': [

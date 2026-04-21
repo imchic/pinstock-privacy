@@ -8,7 +8,6 @@ import '../../../providers/index.dart';
 import '../../../services/app_update_service.dart';
 import '../../../utils/app_toast.dart';
 import '../../../utils/notification_permission_flow.dart';
-import '../../../utils/support_link_opener.dart';
 import 'contact_info_screen.dart';
 
 /// 설정 화면
@@ -704,7 +703,7 @@ class _NotificationSettings extends ConsumerWidget {
                 icon: Icons.access_time_filled_rounded,
                 iconColor: AppColors.accent,
                 title: '장 시작/마감 알림',
-                subtitle: 'NXT 08:00·15:30·15:40, 코스피 09:00·15:30을 미리 알려드려요',
+                subtitle: '뉴스와 별개로 장 시작·마감 시간을 푸시로 알려드려요',
                 value: settings.marketHoursEnabled,
                 onChanged: notificationsEnabled
                     ? (value) async {
@@ -911,28 +910,69 @@ class _SupportSettings extends ConsumerWidget {
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
           child: Column(
             children: [
-              _ContactSummaryRow(
-                icon: Icons.info_outline_rounded,
-                label: '현재 버전',
-                value: appUpdate?.currentVersion ?? '확인 중...',
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: context.colors.surfaceLight,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: context.colors.border),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 38,
+                      height: 38,
+                      decoration: BoxDecoration(
+                        color: AppColors.accent.withAlpha(24),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.badge_outlined,
+                        color: AppColors.accent,
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '앱 정보 및 문의',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: context.colors.textPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '버전, 운영 주체, 연락처, 정책 링크를 한 곳에서 확인할 수 있어요.',
+                            style: TextStyle(
+                              fontSize: 12,
+                              height: 1.45,
+                              color: context.colors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 10),
+              _VersionStatusCard(
+                appUpdate: appUpdate,
+                storeUpdate: storeUpdate,
+                lastUpdatedLabel: lastUpdatedLabel,
                 onCopy: () => _copySupportValue(
                   context,
                   appUpdate?.currentVersion ?? '',
                   '앱 버전이 복사되었습니다',
                 ),
               ),
-              if (appUpdate?.previousVersion != null &&
-                  lastUpdatedLabel != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: 10),
-                  child: _AppInfoRow(
-                    icon: Icons.system_update_alt_rounded,
-                    title: '최근 업데이트',
-                    value:
-                        '${appUpdate!.previousVersion} -> ${appUpdate.currentVersion}',
-                    caption: lastUpdatedLabel,
-                  ),
-                ),
               if (appUpdate != null && appUpdate.releaseNotes.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(top: 10),
@@ -940,11 +980,6 @@ class _SupportSettings extends ConsumerWidget {
                     version: appUpdate.currentVersion,
                     notes: appUpdate.releaseNotes,
                   ),
-                ),
-              if (storeUpdate != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: 10),
-                  child: _StoreUpdateCard(status: storeUpdate),
                 ),
             ],
           ),
@@ -986,7 +1021,7 @@ class _SupportSettings extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '문의하기',
+                        '앱 정보 및 문의 보기',
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
@@ -995,7 +1030,7 @@ class _SupportSettings extends ConsumerWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        '운영 정보, 연락처, 뉴스 출처 안내',
+                        '운영 정보, 연락처, 정책, 데이터 출처를 확인합니다.',
                         style: TextStyle(
                           fontSize: 11,
                           color: context.colors.textSecondary,
@@ -1013,62 +1048,6 @@ class _SupportSettings extends ConsumerWidget {
             ),
           ),
         ),
-        Divider(
-          height: 1,
-          color: context.colors.border,
-          indent: 16,
-          endIndent: 16,
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-          child: Column(
-            children: [
-              _ContactSummaryRow(
-                icon: Icons.email_outlined,
-                label: '이메일',
-                value: AppConstants.supportEmail,
-                onCopy: () => _copySupportValue(
-                  context,
-                  AppConstants.supportEmail,
-                  '이메일이 복사되었습니다',
-                ),
-              ),
-              if (AppConstants.supportPhone.isNotEmpty) ...[
-                const SizedBox(height: 10),
-                _ContactSummaryRow(
-                  icon: Icons.call_outlined,
-                  label: '전화',
-                  value: AppConstants.supportPhone,
-                  onCopy: () => _copySupportValue(
-                    context,
-                    AppConstants.supportPhone,
-                    '전화번호가 복사되었습니다',
-                  ),
-                ),
-              ],
-              const SizedBox(height: 10),
-              _ContactLinkRow(
-                icon: Icons.public_rounded,
-                label: '공식 안내 페이지',
-                onTap: () => _openSupportPage(
-                  context,
-                  title: '공식 안내',
-                  url: AppConstants.supportWebsiteUrl,
-                ),
-              ),
-              const SizedBox(height: 10),
-              _ContactLinkRow(
-                icon: Icons.privacy_tip_outlined,
-                label: '개인정보처리방침',
-                onTap: () => _openSupportPage(
-                  context,
-                  title: '개인정보처리방침',
-                  url: AppConstants.privacyPolicyUrl,
-                ),
-              ),
-            ],
-          ),
-        ),
       ],
     );
   }
@@ -1081,14 +1060,6 @@ class _SupportSettings extends ConsumerWidget {
     await Clipboard.setData(ClipboardData(text: value));
     if (!context.mounted) return;
     showAppToast(context, message);
-  }
-
-  Future<void> _openSupportPage(
-    BuildContext context, {
-    required String title,
-    required String url,
-  }) async {
-    await openSupportLink(context, title: title, url: url);
   }
 }
 
@@ -1162,20 +1133,40 @@ class _ReleaseNotesCard extends StatelessWidget {
   }
 }
 
-class _StoreUpdateCard extends StatelessWidget {
-  final StoreUpdateStatus status;
+class _VersionStatusCard extends StatelessWidget {
+  final AppUpdateStatus? appUpdate;
+  final StoreUpdateStatus? storeUpdate;
+  final String? lastUpdatedLabel;
+  final VoidCallback onCopy;
 
-  const _StoreUpdateCard({required this.status});
+  const _VersionStatusCard({
+    required this.appUpdate,
+    required this.storeUpdate,
+    required this.lastUpdatedLabel,
+    required this.onCopy,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final title = status.isUpdateAvailable
-        ? '새 버전 사용 가능'
-        : status.isSupported
-        ? '스토어 상태'
-        : '업데이트 확인 안내';
-    final actionLabel = status.isUpdateAvailable
-        ? (status.immediateUpdateAllowed ? '업데이트' : '스토어 열기')
+    final currentVersion = appUpdate?.currentVersion ?? '확인 중...';
+    final statusLabel = switch ((
+      storeUpdate?.isUpdateAvailable,
+      storeUpdate?.isSupported,
+    )) {
+      (true, _) => '업데이트 가능',
+      (_, true) => '최신 버전',
+      _ => '확인 불가',
+    };
+    final statusColor = switch ((
+      storeUpdate?.isUpdateAvailable,
+      storeUpdate?.isSupported,
+    )) {
+      (true, _) => AppColors.orange,
+      (_, true) => AppColors.green,
+      _ => context.colors.textSecondary,
+    };
+    final actionLabel = storeUpdate?.isUpdateAvailable == true
+        ? (storeUpdate!.immediateUpdateAllowed ? '업데이트' : '스토어 열기')
         : null;
 
     return Container(
@@ -1189,36 +1180,123 @@ class _StoreUpdateCard extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            Icons.system_update_rounded,
-            size: 16,
-            color: context.colors.textSecondary,
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: context.colors.surface,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              Icons.system_update_rounded,
+              size: 18,
+              color: context.colors.textSecondary,
+            ),
           ),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: context.colors.textSecondary,
-                  ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '현재 버전',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: context.colors.textSecondary,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            currentVersion,
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: context.colors.textPrimary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    TextButton(onPressed: onCopy, child: const Text('복사')),
+                  ],
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  status.message ?? '',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: context.colors.textPrimary,
+                if (appUpdate?.previousVersion != null &&
+                    lastUpdatedLabel != null) ...[
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Text(
+                        '최근 업데이트',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: context.colors.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          '${appUpdate!.previousVersion} -> ${appUpdate!.currentVersion}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: context.colors.textPrimary,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
                   ),
+                ],
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: statusColor.withValues(alpha: 0.10),
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(
+                          color: statusColor.withValues(alpha: 0.24),
+                        ),
+                      ),
+                      child: Text(
+                        statusLabel,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          color: statusColor,
+                        ),
+                      ),
+                    ),
+                    if (lastUpdatedLabel != null) ...[
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          lastUpdatedLabel!,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: context.colors.textSecondary,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ],
             ),
           ),
-          if (actionLabel != null)
+          if (actionLabel != null) ...[
+            const SizedBox(width: 8),
             TextButton(
               onPressed: () async {
                 final launched = await AppUpdateService.launchUpdate();
@@ -1232,176 +1310,8 @@ class _StoreUpdateCard extends StatelessWidget {
               },
               child: Text(actionLabel),
             ),
-        ],
-      ),
-    );
-  }
-}
-
-class _AppInfoRow extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String value;
-  final String caption;
-
-  const _AppInfoRow({
-    required this.icon,
-    required this.title,
-    required this.value,
-    required this.caption,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-      decoration: BoxDecoration(
-        color: context.colors.surfaceLight,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: context.colors.border),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, size: 16, color: context.colors.textSecondary),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: context.colors.textSecondary,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  value,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: context.colors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  caption,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: context.colors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ContactSummaryRow extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String value;
-  final VoidCallback onCopy;
-
-  const _ContactSummaryRow({
-    required this.icon,
-    required this.label,
-    required this.value,
-    required this.onCopy,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-      decoration: BoxDecoration(
-        color: context.colors.surfaceLight,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: context.colors.border),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, size: 16, color: context.colors.textSecondary),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: context.colors.textSecondary,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  value,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: context.colors.textPrimary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          TextButton(onPressed: onCopy, child: const Text('복사')),
-        ],
-      ),
-    );
-  }
-}
-
-class _ContactLinkRow extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  const _ContactLinkRow({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-        decoration: BoxDecoration(
-          color: context.colors.surfaceLight,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: context.colors.border),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, size: 16, color: context.colors.textSecondary),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                label,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: context.colors.textPrimary,
-                ),
-              ),
-            ),
-            Icon(
-              Icons.open_in_new_rounded,
-              size: 16,
-              color: context.colors.textSecondary,
-            ),
           ],
-        ),
+        ],
       ),
     );
   }

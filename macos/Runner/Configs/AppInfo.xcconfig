@@ -8,7 +8,7 @@
 PRODUCT_NAME = PinStock
 
 // The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = com.imchic.pinstock
+PRODUCT_BUNDLE_IDENTIFIER = com.imchic.stockhub
 
 // The copyright displayed in application information
 PRODUCT_COPYRIGHT = Copyright © 2026 com.example. All rights reserved.

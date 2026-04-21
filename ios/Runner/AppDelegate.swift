@@ -15,7 +15,7 @@ import workmanager
       GeneratedPluginRegistrant.register(with: registry)
     }
     // BGTaskScheduler에 태스크 식별자 등록 (Info.plist의 identifier와 일치해야 함)
-    WorkmanagerPlugin.registerTask(withIdentifier: "com.imchic.pinstock.PinStock_news_check")
+    WorkmanagerPlugin.registerTask(withIdentifier: "com.imchic.stockhub.PinStock_news_check")
 
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }

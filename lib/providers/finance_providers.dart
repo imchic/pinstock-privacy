@@ -55,14 +55,29 @@ final krxStocksProvider =
 
 /// AI 시장 요약 — Naver 뉴스 기반 (정확도 우선)
 final aiMarketSummaryProvider = FutureProvider.autoDispose<String>((ref) async {
-  // Naver 뉴스 헤드라인 20개를 핵심 데이터로 사용
+  // 최신, 고중요도, 긍/부정 뉴스가 섞이도록 입력을 구성
   final allNews = await ref.watch(allFinanceNewsProvider.future);
   if (allNews.isEmpty) throw Exception('뉴스 데이터 없음');
 
-  // 최신순 정렬 후 상위 20개 헤드라인 추출
   final sorted = [...allNews]
     ..sort((a, b) => b.publishedAt.compareTo(a.publishedAt));
-  final headlines = sorted.take(20).map((n) => n.title).toList();
+  final selectedNews = <FinanceNews>[];
+  final selectedIds = <String>{};
+
+  void addChunk(Iterable<FinanceNews> items, int limit) {
+    for (final item in items) {
+      if (selectedIds.length >= 24) break;
+      if (!selectedIds.add(item.id)) continue;
+      selectedNews.add(item);
+      if (selectedNews.length >= limit && selectedIds.length >= 24) break;
+    }
+  }
+
+  addChunk(sorted.take(10), 10);
+  addChunk(sorted.where((n) => n.importanceLevel >= 4).take(6), 6);
+  addChunk(sorted.where((n) => n.sentimentScore >= 0.25).take(4), 4);
+  addChunk(sorted.where((n) => n.sentimentScore <= -0.25).take(4), 4);
+  addChunk(sorted.where((n) => n.description.trim().isNotEmpty).take(4), 4);
 
   // 시장 지수는 보조 데이터로만 사용 (없어도 동작)
   final indices = ref.read(marketIndicesProvider).valueOrNull ?? [];
@@ -76,7 +91,8 @@ final aiMarketSummaryProvider = FutureProvider.autoDispose<String>((ref) async {
       .read(aiSummaryServiceProvider)
       .generateMarketSummary(
         indices: indices,
-        headlines: headlines,
+        newsItems: selectedNews,
+        headlines: selectedNews.map((news) => news.title).toList(),
         kospiStocks: krxStocks.kospi,
         kosdaqStocks: krxStocks.kosdaq,
       );

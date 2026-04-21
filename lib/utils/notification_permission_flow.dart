@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../config/index.dart';
+import '../data/models/alert_settings.dart';
 import '../providers/index.dart';
 import '../services/notification_service.dart';
 import 'app_toast.dart';
@@ -35,13 +36,32 @@ Future<bool> enableNotificationsFlow(
     return false;
   }
 
+  final alertSettings = await AlertSettings.load();
+  var marketHoursPermissionGranted = true;
+  if (alertSettings.marketHoursEnabled) {
+    marketHoursPermissionGranted =
+        await NotificationService.requestExactAlarmsPermission();
+  }
+
   await ref.read(toggleNotificationsProvider(true).future);
   if (!context.mounted) {
     return true;
   }
 
+  if (!marketHoursPermissionGranted) {
+    showAppToast(
+      context,
+      '일반 알림만 켰어요. 장 시작/마감 알림은 알람 및 리마인더 권한이 필요해요.',
+      color: AppColors.orange,
+      icon: Icons.access_time_filled_rounded,
+    );
+  }
+
   if (showSuccessToast) {
-    showAppToast(context, '알림이 활성화됐어요.');
+    showAppToast(
+      context,
+      marketHoursPermissionGranted ? '알림이 활성화됐어요.' : '일반 알림이 활성화됐어요.',
+    );
   }
 
   if (Theme.of(context).platform == TargetPlatform.android) {
@@ -92,7 +112,7 @@ Future<bool> _showNotificationPermissionDialog(BuildContext context) async {
         ),
       ),
       content: Text(
-        '속보, 급등락, 관심 키워드 소식을 제때 보내드리기 위해 알림 권한이 필요해요. 다음 단계에서 시스템 권한 창이 표시됩니다.',
+        '속보, 급등락, 관심 키워드와 장 시작·마감 시간을 제때 알려드리기 위해 알림 권한이 필요해요. 다음 단계에서 시스템 권한 창이 표시됩니다.',
         style: TextStyle(
           color: context.colors.textSecondary,
           fontSize: 13,

@@ -706,9 +706,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   Widget _buildBody() {
     switch (_selectedTabIndex) {
       case _financeTabIndex:
-        return const FinanceScreen();
+        return const FinanceScreen(key: ValueKey('finance-tab'));
       case _economicTabIndex:
-        return const FinanceScreen(showEconomicOnly: true);
+        return const FinanceScreen(
+          key: ValueKey('economic-tab'),
+          showEconomicOnly: true,
+        );
       case _trendsTabIndex:
         return const TrendsScreen();
       case _alertsTabIndex:
@@ -716,7 +719,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       case _bookmarkTabIndex:
         return const BookmarkScreen();
       default:
-        return const FinanceScreen();
+        return const FinanceScreen(key: ValueKey('finance-tab-default'));
     }
   }
 }
@@ -740,11 +743,36 @@ class HomeDashboard extends ConsumerWidget {
     return AppColors.accent;
   }
 
+  void _showTrendingKeywordNewsSheet(
+    BuildContext context,
+    Keyword keyword,
+    List<News> newsList,
+  ) {
+    final normalizedKeyword = keyword.name.toLowerCase().trim();
+    final relatedNews = newsList.where((news) {
+      final keywordMatches = news.keywords.any(
+        (item) => item.toLowerCase().contains(normalizedKeyword),
+      );
+      final corpus = '${news.title} ${news.description} ${news.category}'
+          .toLowerCase();
+      return keywordMatches || corpus.contains(normalizedKeyword);
+    }).toList()..sort((a, b) => b.publishedAt.compareTo(a.publishedAt));
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) =>
+          _TrendingKeywordNewsSheet(keyword: keyword, newsList: relatedNews),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final newsAsync = ref.watch(newsListProvider);
     final trendsAsync = ref.watch(topTrendingKeywordsProvider);
     final unreadCountAsync = ref.watch(unreadAlertCountProvider);
+    final currentNewsList = newsAsync.valueOrNull ?? const <News>[];
 
     return RefreshIndicator(
       color: AppColors.accent,
@@ -928,40 +956,56 @@ class HomeDashboard extends ConsumerWidget {
                           children: keywords.take(5).map((keyword) {
                             return Padding(
                               padding: const EdgeInsets.only(right: 8),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 8,
+                              child: GestureDetector(
+                                onTap: () => _showTrendingKeywordNewsSheet(
+                                  context,
+                                  keyword,
+                                  currentNewsList,
                                 ),
-                                decoration: BoxDecoration(
-                                  color: context.colors.surface,
-                                  borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(
-                                    color: context.colors.border,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 8,
                                   ),
-                                ),
-                                child: Column(
-                                  children: [
-                                    Text(
-                                      keyword.name,
-                                      style: TextStyle(
-                                        color: context.colors.textPrimary,
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                      ),
+                                  decoration: BoxDecoration(
+                                    color: context.colors.surface,
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(
+                                      color: context.colors.border,
                                     ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      '${keyword.changeRate > 0 ? '+' : ''}${keyword.changeRate.toStringAsFixed(1)}%',
-                                      style: TextStyle(
-                                        color: keyword.changeRate > 0
-                                            ? AppColors.green
-                                            : AppColors.red,
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w600,
+                                  ),
+                                  child: Column(
+                                    children: [
+                                      Text(
+                                        keyword.name,
+                                        style: TextStyle(
+                                          color: context.colors.textPrimary,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                        ),
                                       ),
-                                    ),
-                                  ],
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        '${keyword.mentionCount}회 언급',
+                                        style: TextStyle(
+                                          color: context.colors.textSecondary,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        '${keyword.changeRate > 0 ? '+' : ''}${keyword.changeRate.toStringAsFixed(1)}%',
+                                        style: TextStyle(
+                                          color: keyword.changeRate > 0
+                                              ? AppColors.green
+                                              : AppColors.red,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
                             );
@@ -1170,5 +1214,265 @@ class HomeDashboard extends ConsumerWidget {
     if (score > 0.1) return AppColors.green;
     if (score < -0.1) return AppColors.red;
     return AppColors.accent;
+  }
+}
+
+class _TrendingKeywordNewsSheet extends StatelessWidget {
+  final Keyword keyword;
+  final List<News> newsList;
+
+  const _TrendingKeywordNewsSheet({
+    required this.keyword,
+    required this.newsList,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final changeColor = keyword.changeRate >= 0
+        ? AppColors.green
+        : AppColors.red;
+    final changeText =
+        '${keyword.changeRate > 0 ? '+' : ''}${keyword.changeRate.toStringAsFixed(1)}%';
+
+    return DraggableScrollableSheet(
+      initialChildSize: 0.72,
+      minChildSize: 0.4,
+      maxChildSize: 0.95,
+      expand: false,
+      builder: (context, scrollController) {
+        return Container(
+          decoration: BoxDecoration(
+            color: context.colors.surface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            children: [
+              Container(
+                margin: const EdgeInsets.symmetric(vertical: 10),
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: context.colors.border,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            keyword.name,
+                            style: TextStyle(
+                              color: context.colors.textPrimary,
+                              fontSize: 20,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.5,
+                            ),
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: changeColor.withValues(alpha: 0.10),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            changeText,
+                            style: TextStyle(
+                              color: changeColor,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _KeywordMetaChip(label: '${keyword.mentionCount}회 언급'),
+                        if (keyword.category.trim().isNotEmpty)
+                          _KeywordMetaChip(label: keyword.category),
+                        _KeywordMetaChip(label: '관련 뉴스 ${newsList.length}건'),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      '이 키워드가 포함된 기사만 모아봤어요',
+                      style: TextStyle(
+                        color: context.colors.textSecondary,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Divider(height: 1, color: context.colors.border),
+              Expanded(
+                child: newsList.isEmpty
+                    ? Center(
+                        child: Text(
+                          '직접 연결된 뉴스가 아직 없습니다',
+                          style: TextStyle(
+                            color: context.colors.textSecondary,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      )
+                    : ListView.separated(
+                        controller: scrollController,
+                        padding: EdgeInsets.fromLTRB(
+                          16,
+                          12,
+                          16,
+                          MediaQuery.of(context).padding.bottom + 16,
+                        ),
+                        itemCount: newsList.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 8),
+                        itemBuilder: (context, index) {
+                          final news = newsList[index];
+                          final color = news.sentimentScore > 0.1
+                              ? AppColors.green
+                              : news.sentimentScore < -0.1
+                              ? AppColors.red
+                              : AppColors.accent;
+
+                          return GestureDetector(
+                            onTap: () => showNewsDetailSheet(
+                              context,
+                              news,
+                              contextLabel: '트렌딩 키워드 · ${keyword.name}',
+                            ),
+                            child: Container(
+                              padding: const EdgeInsets.fromLTRB(
+                                12,
+                                12,
+                                12,
+                                12,
+                              ),
+                              decoration: BoxDecoration(
+                                color: context.colors.surfaceLight,
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(
+                                  color: context.colors.border,
+                                ),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          news.source,
+                                          style: TextStyle(
+                                            color: context.colors.textSecondary,
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Container(
+                                        width: 6,
+                                        height: 6,
+                                        decoration: BoxDecoration(
+                                          color: color,
+                                          shape: BoxShape.circle,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        _timeAgo(news.publishedAt),
+                                        style: TextStyle(
+                                          color: context.colors.textSecondary,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    news.title,
+                                    style: TextStyle(
+                                      color: context.colors.textPrimary,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w700,
+                                      height: 1.4,
+                                    ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  if (news.description.isNotEmpty) ...[
+                                    const SizedBox(height: 5),
+                                    Text(
+                                      news.description,
+                                      style: TextStyle(
+                                        color: context.colors.textSecondary,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w500,
+                                        height: 1.35,
+                                      ),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  static String _timeAgo(DateTime dt) {
+    final diff = DateTime.now().difference(dt);
+    if (diff.inMinutes < 60) return '${diff.inMinutes}분 전';
+    if (diff.inHours < 24) return '${diff.inHours}시간 전';
+    return '${diff.inDays}일 전';
+  }
+}
+
+class _KeywordMetaChip extends StatelessWidget {
+  final String label;
+
+  const _KeywordMetaChip({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: context.colors.surfaceLight,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: context.colors.textSecondary,
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
   }
 }

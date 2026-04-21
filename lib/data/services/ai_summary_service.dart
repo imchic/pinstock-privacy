@@ -3,178 +3,18 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../../config/constants.dart';
+import '../models/finance_news.dart';
 import '../models/market_index.dart';
 
 /// Google Gemini를 사용한 AI 한줄 시장 요약 서비스
 class AiSummaryService {
   static const _endpoint =
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent';
-
-  static const List<_NasdaqCandidate> _nasdaqCandidates = [
-    _NasdaqCandidate(
-      name: '엔비디아',
-      ticker: 'NVDA',
-      sector: 'AI반도체',
-      aliases: ['nvidia'],
-      keywords: ['ai', '인공지능', 'gpu', '데이터센터', '반도체', 'hbm'],
-      reason: 'AI 서버 투자 확대 수혜',
-    ),
-    _NasdaqCandidate(
-      name: 'AMD',
-      ticker: 'AMD',
-      sector: 'AI반도체',
-      aliases: ['advanced micro devices'],
-      keywords: ['ai', 'gpu', '서버', 'cpu', '반도체', '데이터센터'],
-      reason: 'AI GPU와 서버 CPU 확장 기대',
-    ),
-    _NasdaqCandidate(
-      name: '브로드컴',
-      ticker: 'AVGO',
-      sector: 'AI반도체',
-      aliases: ['broadcom'],
-      keywords: ['ai', '반도체', '네트워크', '데이터센터', '맞춤형칩'],
-      reason: '맞춤형 AI 칩 수요 확대 수혜',
-    ),
-    _NasdaqCandidate(
-      name: 'ARM',
-      ticker: 'ARM',
-      sector: '반도체설계',
-      aliases: ['arm holdings'],
-      keywords: ['반도체', '설계', 'ai', '모바일칩', 'ip'],
-      reason: '반도체 설계 IP 수요 확대 기대',
-    ),
-    _NasdaqCandidate(
-      name: '마이크론',
-      ticker: 'MU',
-      sector: '메모리',
-      aliases: ['micron', 'micron technology'],
-      keywords: ['hbm', '메모리', 'd램', 'dram', '낸드', 'ai'],
-      reason: 'HBM 중심 메모리 업황 개선 수혜',
-    ),
-    _NasdaqCandidate(
-      name: 'ASML',
-      ticker: 'ASML',
-      sector: '반도체장비',
-      aliases: ['asml holding', 'asml holdings'],
-      keywords: ['euv', '반도체장비', '파운드리', '첨단공정', '반도체'],
-      reason: '첨단공정 투자 재개 수혜 기대',
-    ),
-    _NasdaqCandidate(
-      name: '마이크로소프트',
-      ticker: 'MSFT',
-      sector: '클라우드소프트웨어',
-      aliases: ['microsoft'],
-      keywords: ['클라우드', 'azure', 'ai', 'copilot', '소프트웨어', '기업IT'],
-      reason: 'Azure와 Copilot 동반 성장 기대',
-    ),
-    _NasdaqCandidate(
-      name: '알파벳',
-      ticker: 'GOOGL',
-      sector: '광고플랫폼',
-      aliases: ['alphabet', 'google'],
-      keywords: ['검색', '광고', '유튜브', '클라우드', 'ai', '디지털광고'],
-      reason: '검색·광고 회복과 AI 서비스 확장',
-    ),
-    _NasdaqCandidate(
-      name: '아마존',
-      ticker: 'AMZN',
-      sector: '클라우드소비',
-      aliases: ['amazon'],
-      keywords: ['aws', '클라우드', '전자상거래', '소비', '물류', '광고'],
-      reason: 'AWS와 소비 회복 동시 수혜 기대',
-    ),
-    _NasdaqCandidate(
-      name: '메타',
-      ticker: 'META',
-      sector: '광고플랫폼',
-      aliases: ['meta', 'meta platforms', 'facebook'],
-      keywords: ['광고', 'sns', '소셜', '릴스', 'ai', '디지털광고'],
-      reason: '광고 효율 개선과 AI 추천 강화',
-    ),
-    _NasdaqCandidate(
-      name: '애플',
-      ticker: 'AAPL',
-      sector: '소비전자',
-      aliases: ['apple'],
-      keywords: ['아이폰', '스마트폰', '디바이스', '소비', '서비스', '웨어러블'],
-      reason: '기기 교체 수요와 서비스 매출 방어',
-    ),
-    _NasdaqCandidate(
-      name: '테슬라',
-      ticker: 'TSLA',
-      sector: '전기차',
-      aliases: ['tesla'],
-      keywords: ['전기차', 'ev', '배터리', '자율주행', '로보택시', '에너지저장'],
-      reason: '자율주행·에너지 사업 모멘텀 반영',
-    ),
-    _NasdaqCandidate(
-      name: '팔란티어',
-      ticker: 'PLTR',
-      sector: '데이터소프트웨어',
-      aliases: ['palantir', 'palantir technologies'],
-      keywords: ['국방', '정부', '데이터', 'ai', '방산', '공공'],
-      reason: '정부·국방 AI 수요 확대 수혜',
-    ),
-    _NasdaqCandidate(
-      name: '팔로알토',
-      ticker: 'PANW',
-      sector: '사이버보안',
-      aliases: ['palo alto', 'palo alto networks'],
-      keywords: ['보안', '사이버', '해킹', '랜섬웨어', '클라우드보안'],
-      reason: '사이버보안 지출 확대 수혜 기대',
-    ),
-    _NasdaqCandidate(
-      name: '크라우드스트라이크',
-      ticker: 'CRWD',
-      sector: '사이버보안',
-      aliases: ['crowdstrike', 'crowdstrike holdings'],
-      keywords: ['보안', '사이버', 'endpoint', '해킹', '랜섬웨어'],
-      reason: '클라우드 보안 수요 확대로 수혜',
-    ),
-    _NasdaqCandidate(
-      name: '어도비',
-      ticker: 'ADBE',
-      sector: '소프트웨어',
-      aliases: ['adobe'],
-      keywords: ['콘텐츠', '디자인', '크리에이터', '생성형ai', '소프트웨어'],
-      reason: '생성형 AI 기반 소프트웨어 수혜',
-    ),
-    _NasdaqCandidate(
-      name: '넷플릭스',
-      ticker: 'NFLX',
-      sector: '미디어플랫폼',
-      aliases: ['netflix'],
-      keywords: ['스트리밍', '광고요금제', '콘텐츠', '구독'],
-      reason: '광고 요금제와 가입자 성장 기대',
-    ),
-    _NasdaqCandidate(
-      name: '인튜이티브서지컬',
-      ticker: 'ISRG',
-      sector: '의료기기',
-      aliases: ['intuitive surgical'],
-      keywords: ['의료기기', '수술로봇', '헬스케어', '병원'],
-      reason: '수술로봇 확산에 따른 성장 기대',
-    ),
-    _NasdaqCandidate(
-      name: '버텍스',
-      ticker: 'VRTX',
-      sector: '바이오',
-      aliases: ['vertex', 'vertex pharmaceuticals'],
-      keywords: ['신약', '바이오', '제약', '임상', '희귀질환'],
-      reason: '신약 파이프라인 가치 재평가 가능',
-    ),
-  ];
-
-  static const List<String> _defaultNasdaqFallbackTickers = [
-    'MSFT',
-    'AVGO',
-    'AMZN',
-    'META',
-  ];
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent';
 
   /// 시장 지수 데이터 + 뉴스 헤드라인 → 한 줄 한국어 요약 반환
   Future<String> generateMarketSummary({
     required List<MarketIndex> indices,
+    List<FinanceNews> newsItems = const [],
     List<String> headlines = const [],
     List<String> kospiStocks = const [], // KRX 코스피 실제 상장 종목
     List<String> kosdaqStocks = const [], // KRX 코스닥 실제 상장 종목
@@ -182,30 +22,65 @@ class AiSummaryService {
     const key = AppConstants.geminiApiKey;
     if (key.isEmpty) throw Exception('Gemini API 키가 설정되지 않았습니다');
 
-    // 뉴스 헤드라인이 핵심 데이터, 지수는 보조
-    final newsText = headlines.isNotEmpty
-        ? headlines.map((h) => '• $h').join('\n')
+    final normalizedNewsItems = newsItems
+        .where((item) => item.title.trim().isNotEmpty)
+        .take(24)
+        .toList();
+    final normalizedHeadlines = headlines
+        .map((headline) => headline.trim())
+        .where((headline) => headline.isNotEmpty)
+        .take(20)
+        .toList();
+
+    final newsText = normalizedNewsItems.isNotEmpty
+        ? _buildStructuredNewsText(normalizedNewsItems)
+        : normalizedHeadlines.isNotEmpty
+        ? normalizedHeadlines
+              .asMap()
+              .entries
+              .map((entry) => '${entry.key + 1}. ${entry.value}')
+              .join('\n')
         : '뉴스 없음';
     final indexText = indices.isNotEmpty
         ? '시장 지수: ${indices.map((i) => '${i.name} ${i.formattedChange}').join(', ')}'
         : '';
 
-    // KRX 실제 종목 리스트 — 있으면 프롬프트에 포함, 없으면 추천 금지
-    final kospiListText = kospiStocks.isNotEmpty
-        ? '코스피 상장 종목 목록(이 중에서만 추천):\n${kospiStocks.join(', ')}\n'
-        : '코스피 종목 목록 없음 → 코스피 항목은 반드시 "코스피: 없음" 으로만 출력할 것\n';
-    final kosdaqListText = kosdaqStocks.isNotEmpty
-        ? '코스닥 상장 종목 목록(이 중에서만 추천):\n${kosdaqStocks.join(', ')}\n'
-        : '코스닥 종목 목록 없음 → 코스닥 항목은 반드시 "코스닥: 없음" 으로만 출력할 것\n';
-    final nasdaqListText =
-        '나스닥 우선 추천 후보군(가능하면 이 안에서 선택, 티커만 쓰지 말고 종목명+티커로 출력):\n'
-        '${_nasdaqCandidates.map((c) => '${c.name} ${c.ticker}(${c.sector})').join(', ')}\n';
+    final kospiCandidates = _buildKrkCandidates(
+      newsItems: normalizedNewsItems,
+      stocks: kospiStocks,
+      market: 'kospi',
+    );
+    final kosdaqCandidates = _buildKrkCandidates(
+      newsItems: normalizedNewsItems,
+      stocks: kosdaqStocks,
+      market: 'kosdaq',
+    );
+    final directMentionedKospi = _findDirectMentionedStocks(
+      newsItems: normalizedNewsItems,
+      stocks: kospiStocks,
+    );
+    final directMentionedKosdaq = _findDirectMentionedStocks(
+      newsItems: normalizedNewsItems,
+      stocks: kosdaqStocks,
+    );
+    final kospiListText = kospiCandidates.isNotEmpty
+        ? '코스피 추천 후보군(가능하면 아래 후보군 안에서만 추천):\n${kospiCandidates.join(', ')}\n'
+        : '코스피 후보군이 비어 있음 → 코스피 항목은 직접 뉴스에 언급된 종목이 없으면 "없음" 으로 출력할 것\n';
+    final kosdaqListText = kosdaqCandidates.isNotEmpty
+        ? '코스닥 추천 후보군(가능하면 아래 후보군 안에서만 추천):\n${kosdaqCandidates.join(', ')}\n'
+        : '코스닥 후보군이 비어 있음 → 코스닥 항목은 직접 뉴스에 언급된 종목이 없으면 "없음" 으로 출력할 것\n';
+    const nasdaqGuideText =
+        '나스닥 추천은 뉴스 제목에 직접 드러난 기업·산업·이벤트를 우선 근거로 삼되, 특정 종목명이 없어도 제목에 드러난 산업/거시 이벤트로 수혜 가능성이 높은 대표 종목까지는 연결할 수 있다. 다만 연결 근거가 약하면 "나스닥: 없음" 으로 출력할 것\n';
+    const coinGuideText =
+        '코인 추천은 비트코인, 이더리움 같은 직접 언급이 있으면 최우선 반영하고, 직접 종목 언급이 없더라도 위험자산 선호, 달러 약세, 금리 기대, ETF/제도권 수급, 채굴/전력/블록체인 인프라 같은 제목 키워드가 있으면 대표 코인으로 연결할 수 있다. 근거가 약하면 "코인: 없음" 으로 출력할 것\n';
 
     final prompt =
         '역할:\n'
         '당신은 한국 및 글로벌 금융시장을 분석하는 탑티어 헤지펀드 애널리스트다.\n'
         '뉴스 기반으로 단기 트레이딩 관점에서 실제 수익 기회를 찾는 것이 목표다.\n\n'
         '분석 기준:\n'
+        '- 아래에 제공된 뉴스 제목 자체를 가장 중요한 1차 근거로 사용할 것\n'
+        '- 제목에 직접 드러난 이벤트, 기업명, 산업 키워드에만 의존해 판단할 것\n'
         '- 뉴스 → 수혜/피해 산업 도출\n'
         '- 산업 → 실제 수혜 가능 종목 연결\n'
         '- 반드시 "왜 오를지" 근거 중심\n\n'
@@ -219,10 +94,14 @@ class AiSummaryService {
         '분석내용: 소제목에 대한 상세 분석 1~2줄\n'
         '강세섹터: 섹터A, 섹터B, 섹터C\n'
         '약세섹터: 섹터D, 섹터E\n'
-        '코스피: 종목명(핵심 이유), 종목명(핵심 이유)\n'
-        '코스닥: 종목명(핵심 이유), 종목명(핵심 이유)\n'
-        '나스닥: 종목명 티커(핵심 이유), 종목명 티커(핵심 이유)\n'
-        '코인: 티커(핵심 이유), 티커(핵심 이유)\n'
+        '강세추천 코스피: 종목명[섹터명](핵심 이유), ... 최대 6개\n'
+        '강세추천 코스닥: 종목명[섹터명](핵심 이유), ... 최대 6개\n'
+        '강세추천 나스닥: 종목명 티커[섹터명](핵심 이유), ... 최대 6개\n'
+        '강세추천 코인: 티커[섹터명](핵심 이유), ... 최대 6개\n'
+        '약세주의 코스피: 종목명[섹터명](핵심 이유), ... 최대 6개\n'
+        '약세주의 코스닥: 종목명[섹터명](핵심 이유), ... 최대 6개\n'
+        '약세주의 나스닥: 종목명 티커[섹터명](핵심 이유), ... 최대 6개\n'
+        '약세주의 코인: 티커[섹터명](핵심 이유), ... 최대 6개\n'
         '---\n\n'
         '규칙:\n'
         '[하이라이트]\n'
@@ -238,19 +117,40 @@ class AiSummaryService {
         '- 뉴스에서 직접 연결되는 섹터만 선택\n'
         '- 강세/약세 각각 2~4개\n\n'
         '[추천 종목]\n'
-        '- 각 시장별 3~5개\n'
-        '- 종목명(핵심 이유) 형식, 이유는 15~30자\n'
-        '- 뉴스 → 산업 → 종목 흐름이 명확해야 함\n\n'
+        '- 강세추천과 약세주의를 반드시 분리해 출력할 것\n'
+        '- 각 시장별 가능하면 6개 내외, 최소 4개\n'
+        '- 반드시 종목명[섹터명](핵심 이유) 형식을 사용할 것\n'
+        '- 섹터명은 강세/약세 섹터에 적은 표현과 최대한 일치시킬 것\n'
+        '- 이유는 15~30자\n'
+        '- 뉴스 제목 → 산업 → 종목 흐름이 명확해야 함\n'
+        '- 기사 제목에 없는 막연한 테마 확장 금지. 단, 나스닥/코인은 제목에 드러난 섹터/이벤트에서 대표 종목으로 한 단계 연결하는 것은 허용\n\n'
+        '[약세주의 종목 규칙]\n'
+        '- 약세주의는 하락 압력이 큰 업종/기업 또는 회피가 필요한 종목을 적을 것\n'
+        '- 약세섹터가 1개 이상 잡혔다면 약세주의 종목도 최소 1개 이상 반드시 제시할 것\n'
+        '- 거시 악재 뉴스(관세, 규제, 금리상승, 달러강세, 유가급등, 경기둔화, 지정학 리스크)가 있으면 관련 대표 종목이나 대표 코인을 약세주의로 연결할 것\n'
+        '- 직접 악재 종목 언급이 없더라도 악재를 가장 민감하게 받는 고밸류/고변동 대표 종목으로 연결 가능\n'
+        '- 강세추천 종목을 약세주의에 중복 기재하지 말 것\n'
+        '- 전체 뉴스에 약세 근거가 거의 없을 때만 "없음" 을 사용할 수 있음\n\n'
         '[나스닥 제한]\n'
         '- 나스닥은 티커만 쓰지 말고 반드시 종목명과 티커를 함께 표기\n'
+        '- 뉴스 제목에 직접 언급된 종목이 있으면 우선 추천\n'
+        '- 직접 종목 언급이 없더라도 제목에 드러난 산업/이벤트와 매우 강하게 연결되는 대표 종목은 추천 가능\n'
+        '- 예: AI capex/반도체 → NVIDIA, AMD / 클라우드·기업 AI → Microsoft, Amazon / 전기차·자율주행 → Tesla\n'
+        '- 약세주의는 고금리, 관세, 공급망 불안, 밸류에이션 부담, 소비 둔화에 취약한 대표 성장주/반도체/소비재 종목으로 연결 가능\n'
         '- 가능하면 서로 다른 2개 이상 세부 테마로 분산 추천\n'
-        '- 엔비디아 1종목만 반복 추천하는 식의 쏠림 금지\n'
-        '- AI/반도체 이슈면 AMD, AVGO, ARM, MU, MSFT 등 연관 수혜주도 함께 검토\n\n'
+        '- 특정 종목 1개로만 반복 추천하는 쏠림 금지\n\n'
+        '[코인 제한]\n'
+        '- 코인은 티커 또는 대표 코인명으로 표기 가능\n'
+        '- 직접 코인 언급이 없더라도 제목에 위험자산 선호, 유동성 확대, 금리 인하 기대, ETF/제도권 수급, 블록체인 인프라가 드러나면 BTC, ETH, SOL 등 대표 코인으로 연결 가능\n'
+        '- 반대로 규제 강화, 해킹, 위험회피, 달러 강세, 유동성 축소가 강하면 약세주의 코인으로 연결 가능\n'
+        '- 약세주의 코인은 변동성 확대 구간에서 BTC, ETH, SOL 등 시가총액 상위 코인 중 뉴스 맥락과 가장 맞는 자산으로 연결 가능\n'
+        '- 기사와 연결이 약하면 "없음" 으로 출력\n\n'
         '[KRX 제한]\n'
-        '- 코스피/코스닥 종목은 반드시 제공된 리스트 내에서만 선택\n'
+        '- 코스피/코스닥 종목은 후보군 우선으로 선택할 것\n'
+        '- 후보군 밖 종목은 뉴스에 직접 종목명이 드러난 경우에만 예외적으로 허용\n'
         '- 코스피 리스트에 있는 종목은 절대 코스닥 항목에 포함하지 말 것\n'
         '- 코스닥 리스트에 있는 종목은 절대 코스피 항목에 포함하지 말 것\n'
-        '- 리스트에 없는 종목은 추천하지 말 것\n\n'
+        '- 뉴스와 연결 근거가 약하면 KRX 종목은 "없음" 으로 출력할 것\n\n'
         '[금지사항]\n'
         '- 뉴스와 무관한 추천 금지\n'
         '- 형식 변경 금지\n\n'
@@ -258,7 +158,8 @@ class AiSummaryService {
         '${indexText.isNotEmpty ? '$indexText\n' : ''}'
         '$kospiListText'
         '$kosdaqListText'
-        '$nasdaqListText'
+        '$nasdaqGuideText'
+        '$coinGuideText'
         '출력:';
 
     final resp = await http.post(
@@ -273,7 +174,7 @@ class AiSummaryService {
           },
         ],
         'generationConfig': {
-          'maxOutputTokens': 500, // 분석 3줄 + 섹터 2줄 + 추천 종목 4줄(이유 포함)
+          'maxOutputTokens': 900, // 추천 종목을 시장별 6개 내외까지 허용
           'temperature': 0.4, // 더 일관된 응답을 위해 온도 감소
           'topP': 0.8, // 출력 다양성 제한
         },
@@ -293,18 +194,176 @@ class AiSummaryService {
       rawText.trim(),
       kospiStocks,
       kosdaqStocks,
-      headlines,
+      kospiCandidates: kospiCandidates,
+      kosdaqCandidates: kosdaqCandidates,
+      directMentionedKospi: directMentionedKospi,
+      directMentionedKosdaq: directMentionedKosdaq,
     );
   }
+
+  String _buildStructuredNewsText(List<FinanceNews> items) {
+    return items
+        .asMap()
+        .entries
+        .map((entry) {
+          final index = entry.key + 1;
+          final item = entry.value;
+          final sentimentLabel = item.sentimentScore >= 0.25
+              ? '긍정'
+              : item.sentimentScore <= -0.25
+              ? '부정'
+              : '중립';
+          final keywords = item.keywords.take(4).join(', ');
+          final desc = item.description.trim().isEmpty
+              ? '-'
+              : item.description.trim();
+          return '$index. 제목: ${item.title}\n'
+              '   요약: $desc\n'
+              '   감성: $sentimentLabel / 중요도: ${item.importanceLevel} / 카테고리: ${item.category}\n'
+              '   키워드: ${keywords.isEmpty ? '-' : keywords}';
+        })
+        .join('\n');
+  }
+
+  List<String> _buildKrkCandidates({
+    required List<FinanceNews> newsItems,
+    required List<String> stocks,
+    required String market,
+  }) {
+    if (stocks.isEmpty) return const [];
+
+    final scores = <String, double>{};
+    final themeMap = market == 'kospi'
+        ? _kospiThemeCandidates
+        : _kosdaqThemeCandidates;
+
+    void addScore(String stock, double score) {
+      if (!stocks.contains(stock)) return;
+      scores.update(stock, (value) => value + score, ifAbsent: () => score);
+    }
+
+    final directMatches = _findDirectMentionedStocks(
+      newsItems: newsItems,
+      stocks: stocks,
+    );
+    for (final stock in directMatches) {
+      addScore(stock, 10);
+    }
+
+    for (final item in newsItems) {
+      final sourceText =
+          '${item.title} ${item.description} ${item.keywords.join(' ')}'
+              .toLowerCase();
+      final sentimentWeight = item.sentimentScore.abs() >= 0.25 ? 1.3 : 1.0;
+      final importanceWeight = 1 + (item.importanceLevel * 0.18);
+
+      for (final entry in themeMap.entries) {
+        final matchCount = entry.key.where(sourceText.contains).length;
+        if (matchCount == 0) continue;
+        final score = matchCount * sentimentWeight * importanceWeight;
+        for (final candidate in entry.value) {
+          addScore(candidate, score);
+        }
+      }
+    }
+
+    final fallback =
+        (market == 'kospi'
+                ? _kospiFallbackCandidates
+                : _kosdaqFallbackCandidates)
+            .where(stocks.contains);
+    for (final stock in fallback) {
+      addScore(stock, 0.25);
+    }
+
+    final ranked = scores.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    return ranked.map((entry) => entry.key).take(32).toList();
+  }
+
+  List<String> _findDirectMentionedStocks({
+    required List<FinanceNews> newsItems,
+    required List<String> stocks,
+  }) {
+    if (stocks.isEmpty) return const [];
+
+    final sourceTexts = newsItems
+        .map(
+          (item) =>
+              '${item.title} ${item.description} ${item.keywords.join(' ')}',
+        )
+        .join(' ')
+        .toLowerCase();
+
+    final sortedStocks = [...stocks]
+      ..sort((a, b) => b.length.compareTo(a.length));
+    final matches = <String>[];
+
+    for (final stock in sortedStocks) {
+      if (stock.length < 2) continue;
+      if (sourceTexts.contains(stock.toLowerCase())) {
+        matches.add(stock);
+      }
+    }
+
+    return matches;
+  }
+
+  static const Map<List<String>, List<String>> _kospiThemeCandidates = {
+    ['반도체', 'ai', 'hbm', '메모리']: ['삼성전자', 'SK하이닉스'],
+    ['2차전지', '배터리', '전기차']: ['LG에너지솔루션', '삼성SDI', '포스코퓨처엠'],
+    ['방산', '전쟁', '국방']: ['한화에어로스페이스', '현대로템'],
+    ['원전', '전력', '전기']: ['두산에너빌리티', '한국전력'],
+    ['자동차', '자율주행', '완성차']: ['현대차', '기아'],
+    ['조선', '해운', 'lng']: ['HD현대중공업', '한화오션'],
+    ['바이오', '제약', '헬스케어']: ['삼성바이오로직스', '셀트리온'],
+    ['인터넷', '플랫폼', '광고']: ['NAVER', '카카오'],
+  };
+
+  static const Map<List<String>, List<String>> _kosdaqThemeCandidates = {
+    ['2차전지', '배터리', '전기차']: ['에코프로비엠', '에코프로'],
+    ['바이오', '제약', '헬스케어']: ['알테오젠', 'HLB'],
+    ['반도체', 'hbm', '장비']: ['HPSP', '리노공업'],
+    ['로봇', '자동화']: ['레인보우로보틱스'],
+    ['엔터', '콘텐츠']: ['JYP Ent.'],
+  };
+
+  static const List<String> _kospiFallbackCandidates = [
+    '삼성전자',
+    'SK하이닉스',
+    '현대차',
+    '기아',
+    'LG에너지솔루션',
+    '삼성바이오로직스',
+    '한화에어로스페이스',
+    '두산에너빌리티',
+    'NAVER',
+    '카카오',
+  ];
+
+  static const List<String> _kosdaqFallbackCandidates = [
+    '에코프로비엠',
+    '에코프로',
+    '알테오젠',
+    'HLB',
+    '레인보우로보틱스',
+    'HPSP',
+    '리노공업',
+    'JYP Ent.',
+  ];
 
   /// AI 응답 텍스트를 포맷팅 + KRX 목록으로 코스피/코스닥 교차 검증
   /// 코스피 리스트 종목이 코스닥에, 코스닥 리스트 종목이 코스피에 잘못 배치된 경우 제거
   String _formatAndValidate(
     String text,
     List<String> kospiStocks,
-    List<String> kosdaqStocks,
-    List<String> headlines,
-  ) {
+    List<String> kosdaqStocks, {
+    List<String> kospiCandidates = const [],
+    List<String> kosdaqCandidates = const [],
+    List<String> directMentionedKospi = const [],
+    List<String> directMentionedKosdaq = const [],
+  }) {
     final cleanText = text
         .replaceAll(RegExp(r'\n+'), '\n')
         .replaceAll(RegExp(r'^\s+|\s+$', multiLine: true), '')
@@ -343,8 +402,12 @@ class AiSummaryService {
           }
           continue;
         }
-        final pM = RegExp(r'^(코스피|코스닥|나스닥|코인)\s*:\s*(.+)').firstMatch(t);
-        if (pM != null) pickMap[pM.group(1)!] = pM.group(2)!.trim();
+        final pM = RegExp(
+          r'^(강세추천|약세주의)\s+(코스피|코스닥|나스닥|코인)\s*:\s*(.+)',
+        ).firstMatch(t);
+        if (pM != null) {
+          pickMap['${pM.group(1)!} ${pM.group(2)!}'] = pM.group(3)!.trim();
+        }
       }
     }
 
@@ -374,13 +437,20 @@ class AiSummaryService {
       pickMap,
       kospiStocks,
       kosdaqStocks,
-      headlines,
+      kospiCandidates: kospiCandidates,
+      kosdaqCandidates: kosdaqCandidates,
+      directMentionedKospi: directMentionedKospi,
+      directMentionedKosdaq: directMentionedKosdaq,
     );
 
-    result.writeln('코스피: ${validated['코스피'] ?? '-'}');
-    result.writeln('코스닥: ${validated['코스닥'] ?? '-'}');
-    result.writeln('나스닥: ${validated['나스닥'] ?? '-'}');
-    result.write('코인: ${pickMap['코인'] ?? '-'}');
+    result.writeln('강세추천 코스피: ${validated['강세추천 코스피'] ?? '-'}');
+    result.writeln('강세추천 코스닥: ${validated['강세추천 코스닥'] ?? '-'}');
+    result.writeln('강세추천 나스닥: ${validated['강세추천 나스닥'] ?? '-'}');
+    result.writeln('강세추천 코인: ${pickMap['강세추천 코인'] ?? '-'}');
+    result.writeln('약세주의 코스피: ${validated['약세주의 코스피'] ?? '-'}');
+    result.writeln('약세주의 코스닥: ${validated['약세주의 코스닥'] ?? '-'}');
+    result.writeln('약세주의 나스닥: ${validated['약세주의 나스닥'] ?? '-'}');
+    result.write('약세주의 코인: ${pickMap['약세주의 코인'] ?? '-'}');
 
     return result.toString();
   }
@@ -391,243 +461,81 @@ class AiSummaryService {
   Map<String, String> _rebalancePicks(
     Map<String, String> pickMap,
     List<String> kospiStocks,
-    List<String> kosdaqStocks,
-    List<String> headlines,
-  ) {
+    List<String> kosdaqStocks, {
+    List<String> kospiCandidates = const [],
+    List<String> kosdaqCandidates = const [],
+    List<String> directMentionedKospi = const [],
+    List<String> directMentionedKosdaq = const [],
+  }) {
     final kospiSet = kospiStocks.toSet();
     final kosdaqSet = kosdaqStocks.toSet();
+    final kospiCandidateSet = kospiCandidates.toSet();
+    final kosdaqCandidateSet = kosdaqCandidates.toSet();
+    final directMentionedKospiSet = directMentionedKospi.toSet();
+    final directMentionedKosdaqSet = directMentionedKosdaq.toSet();
     // 이름(이유) 형식에서 종목명만 추출
-    final itemPattern = RegExp(r'^(.+?)\(');
+    final itemPattern = RegExp(r'^(.+?)(?:\[[^\]]+\])?\(');
 
-    String filterOut(String items, Set<String> excludeSet) {
+    String filterOut(
+      String items,
+      Set<String> excludeSet, {
+      Set<String>? allowedSet,
+      Set<String>? allowExtraSet,
+    }) {
       if (items == '-' || items.isEmpty) return items;
       final rawItems = items.split(RegExp(r',\s*(?=[^)]*(?:\(|$))'));
       final kept = rawItems.where((t) {
         final name = (itemPattern.firstMatch(t.trim())?.group(1) ?? t).trim();
-        return !excludeSet.contains(name);
+        if (name == '-' || name == '없음') return false;
+        if (excludeSet.contains(name)) return false;
+        if (allowedSet != null &&
+            allowedSet.isNotEmpty &&
+            !allowedSet.contains(name)) {
+          if (allowExtraSet == null || !allowExtraSet.contains(name)) {
+            return false;
+          }
+        }
+        return true;
       }).toList();
       return kept.isEmpty ? '-' : kept.join(', ');
     }
 
-    final normalizedNasdaq = _normalizeNasdaqPicks(pickMap['나스닥'] ?? '-');
-    final nasdaqItems = normalizedNasdaq == '-' || normalizedNasdaq.isEmpty
-        ? <_ParsedPick>[]
-        : _parsePickItems(normalizedNasdaq);
-    final nasdaqTickers = nasdaqItems
-        .map((item) => item.ticker)
-        .whereType<String>()
-        .toSet();
-    final needsNasdaqSupplement =
-        nasdaqItems.length < 3 ||
-        nasdaqTickers.length < 3 ||
-        (nasdaqTickers.length == 1 && nasdaqTickers.contains('NVDA'));
-
-    var finalNasdaq = normalizedNasdaq;
-    if (needsNasdaqSupplement) {
-      final supplements = _buildNasdaqFallback(
-        headlines,
-        excludedTickers: nasdaqTickers,
-      );
-      final merged = [...nasdaqItems, ...supplements];
-      final unique = <String, _ParsedPick>{};
-      for (final item in merged) {
-        final key = item.ticker ?? item.name;
-        unique.putIfAbsent(key, () => item);
-      }
-      finalNasdaq = unique.values
-          .take(4)
-          .map((item) => item.display)
-          .join(', ');
-      if (finalNasdaq.isEmpty) {
-        finalNasdaq = '-';
-      }
-    }
-
     return {
       ...pickMap,
-      '코스피': kospiStocks.isEmpty
-          ? (pickMap['코스피'] ?? '-')
-          : filterOut(pickMap['코스피'] ?? '-', kosdaqSet),
-      '코스닥': kosdaqStocks.isEmpty
-          ? (pickMap['코스닥'] ?? '-')
-          : filterOut(pickMap['코스닥'] ?? '-', kospiSet),
-      '나스닥': finalNasdaq,
+      '강세추천 코스피': kospiStocks.isEmpty
+          ? (pickMap['강세추천 코스피'] ?? '-')
+          : filterOut(
+              pickMap['강세추천 코스피'] ?? '-',
+              kosdaqSet,
+              allowedSet: kospiCandidateSet,
+              allowExtraSet: directMentionedKospiSet,
+            ),
+      '강세추천 코스닥': kosdaqStocks.isEmpty
+          ? (pickMap['강세추천 코스닥'] ?? '-')
+          : filterOut(
+              pickMap['강세추천 코스닥'] ?? '-',
+              kospiSet,
+              allowedSet: kosdaqCandidateSet,
+              allowExtraSet: directMentionedKosdaqSet,
+            ),
+      '강세추천 나스닥': pickMap['강세추천 나스닥'] ?? '-',
+      '약세주의 코스피': kospiStocks.isEmpty
+          ? (pickMap['약세주의 코스피'] ?? '-')
+          : filterOut(
+              pickMap['약세주의 코스피'] ?? '-',
+              kosdaqSet,
+              allowedSet: kospiCandidateSet,
+              allowExtraSet: directMentionedKospiSet,
+            ),
+      '약세주의 코스닥': kosdaqStocks.isEmpty
+          ? (pickMap['약세주의 코스닥'] ?? '-')
+          : filterOut(
+              pickMap['약세주의 코스닥'] ?? '-',
+              kospiSet,
+              allowedSet: kosdaqCandidateSet,
+              allowExtraSet: directMentionedKosdaqSet,
+            ),
+      '약세주의 나스닥': pickMap['약세주의 나스닥'] ?? '-',
     };
   }
-
-  String _normalizeNasdaqPicks(String items) {
-    if (items == '-' || items.trim().isEmpty) return '-';
-
-    final parsed = _parsePickItems(items);
-    if (parsed.isEmpty) return '-';
-
-    final unique = <String, _ParsedPick>{};
-    for (final item in parsed) {
-      final key = item.ticker ?? item.name;
-      unique.putIfAbsent(key, () => item);
-    }
-    return unique.values.map((item) => item.display).join(', ');
-  }
-
-  List<_ParsedPick> _parsePickItems(String items) {
-    final itemPattern = RegExp(r'^(.+?)\((.+?)\)$');
-    final rawItems = items.split(RegExp(r',\s*(?=[^)]*(?:\(|$))'));
-
-    return rawItems
-        .map((raw) => raw.trim())
-        .where((raw) => raw.isNotEmpty && raw != '-')
-        .map((raw) {
-          final match = itemPattern.firstMatch(raw);
-          final label = match?.group(1)?.trim() ?? raw;
-          final reason = match?.group(2)?.trim() ?? '';
-          final candidate = _findNasdaqCandidate(label);
-          final displayName = candidate != null
-              ? '${candidate.name} ${candidate.ticker}'
-              : label;
-          final displayReason = reason.isNotEmpty
-              ? reason
-              : candidate?.reason ?? '뉴스 흐름상 상대 강도 우위';
-          return _ParsedPick(
-            name: candidate?.name ?? label,
-            ticker: candidate?.ticker,
-            display: '$displayName($displayReason)',
-          );
-        })
-        .toList();
-  }
-
-  List<_ParsedPick> _buildNasdaqFallback(
-    List<String> headlines, {
-    Set<String> excludedTickers = const {},
-  }) {
-    final text = headlines.join(' ').toLowerCase();
-    final scored =
-        _nasdaqCandidates
-            .where((candidate) => !excludedTickers.contains(candidate.ticker))
-            .map((candidate) {
-              var score = 0;
-              for (final keyword in candidate.keywords) {
-                if (text.contains(keyword.toLowerCase())) {
-                  score += 3;
-                }
-              }
-              if (candidate.sector == 'AI반도체' &&
-                  (text.contains('엔비디아') ||
-                      text.contains('nvidia') ||
-                      text.contains('반도체'))) {
-                score += 2;
-              }
-              if (candidate.sector == '광고플랫폼' &&
-                  (text.contains('광고') || text.contains('소비'))) {
-                score += 1;
-              }
-              if (candidate.sector == '클라우드소프트웨어' &&
-                  (text.contains('클라우드') || text.contains('기업'))) {
-                score += 1;
-              }
-              return (candidate: candidate, score: score);
-            })
-            .where((entry) => entry.score > 0)
-            .toList()
-          ..sort((a, b) => b.score.compareTo(a.score));
-
-    final selected = <_NasdaqCandidate>[];
-    final usedSectors = <String>{};
-
-    void addCandidate(_NasdaqCandidate candidate) {
-      if (selected.any((item) => item.ticker == candidate.ticker)) return;
-      selected.add(candidate);
-      usedSectors.add(candidate.sector);
-    }
-
-    for (final entry in scored) {
-      if (selected.length >= 4) break;
-      if (selected.length < 3 && usedSectors.contains(entry.candidate.sector)) {
-        continue;
-      }
-      addCandidate(entry.candidate);
-    }
-
-    if (selected.length < 3) {
-      for (final ticker in _defaultNasdaqFallbackTickers) {
-        final candidate = _nasdaqCandidates.firstWhere(
-          (item) => item.ticker == ticker,
-        );
-        if (excludedTickers.contains(candidate.ticker)) continue;
-        if (selected.length < 3 && usedSectors.contains(candidate.sector)) {
-          continue;
-        }
-        addCandidate(candidate);
-        if (selected.length >= 4) break;
-      }
-    }
-
-    if (selected.length < 3) {
-      for (final candidate in _nasdaqCandidates) {
-        if (excludedTickers.contains(candidate.ticker)) continue;
-        addCandidate(candidate);
-        if (selected.length >= 4) break;
-      }
-    }
-
-    return selected
-        .take(4)
-        .map(
-          (candidate) => _ParsedPick(
-            name: candidate.name,
-            ticker: candidate.ticker,
-            display:
-                '${candidate.name} ${candidate.ticker}(${candidate.reason})',
-          ),
-        )
-        .toList();
-  }
-
-  _NasdaqCandidate? _findNasdaqCandidate(String label) {
-    final normalized = label.trim().toLowerCase();
-    final tickerMatch = RegExp(r'\b[A-Z]{2,5}\b').firstMatch(label);
-    final ticker = tickerMatch?.group(0)?.toUpperCase();
-
-    for (final candidate in _nasdaqCandidates) {
-      if (ticker != null && candidate.ticker == ticker) {
-        return candidate;
-      }
-      if (normalized == candidate.name.toLowerCase() ||
-          normalized == candidate.ticker.toLowerCase() ||
-          candidate.aliases.any(
-            (alias) => normalized == alias || normalized.contains(alias),
-          ) ||
-          normalized.contains(candidate.name.toLowerCase()) ||
-          normalized.contains(candidate.ticker.toLowerCase())) {
-        return candidate;
-      }
-    }
-    return null;
-  }
-}
-
-class _ParsedPick {
-  const _ParsedPick({required this.name, required this.display, this.ticker});
-
-  final String name;
-  final String display;
-  final String? ticker;
-}
-
-class _NasdaqCandidate {
-  const _NasdaqCandidate({
-    required this.name,
-    required this.ticker,
-    required this.sector,
-    this.aliases = const [],
-    required this.keywords,
-    required this.reason,
-  });
-
-  final String name;
-  final String ticker;
-  final String sector;
-  final List<String> aliases;
-  final List<String> keywords;
-  final String reason;
 }

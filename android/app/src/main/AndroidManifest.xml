@@ -7,7 +7,7 @@
     <!-- 정확한 알람 예약 (Android 12+ / API 31+) - 장 시작/마감 알림에 필요 -->
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
     <!-- WorkManager: 재부팅 후에도 백그라운드 태스크 유지 -->
-    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+<uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <!-- 배터리 최적화 제외 요청 (WorkManager 15분 주기 신뢰도 향상) -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>
     

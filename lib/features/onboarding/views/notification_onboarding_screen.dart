@@ -64,151 +64,267 @@ class _NotificationOnboardingScreenState
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
-            return SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  minHeight: constraints.maxHeight - 44,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      width: 68,
-                      height: 68,
-                      decoration: BoxDecoration(
-                        color: AppColors.accent.withAlpha(22),
-                        borderRadius: BorderRadius.circular(22),
-                      ),
-                      child: const Icon(
-                        Icons.notifications_active_rounded,
-                        color: AppColors.accent,
-                        size: 34,
-                      ),
+            final extraCompact = constraints.maxHeight < 700;
+            final compact = constraints.maxHeight < 760;
+            final bodySize = extraCompact
+                ? 12.0
+                : compact
+                ? 13.0
+                : 14.0;
+            final outerPadding = extraCompact
+                ? 14.0
+                : compact
+                ? 18.0
+                : 24.0;
+            final blockGap = extraCompact
+                ? 10.0
+                : compact
+                ? 16.0
+                : 24.0;
+            final cardGap = extraCompact
+                ? 6.0
+                : compact
+                ? 8.0
+                : 12.0;
+            final buttonTopGap = extraCompact
+                ? 10.0
+                : compact
+                ? 14.0
+                : 18.0;
+
+            return Padding(
+              padding: EdgeInsets.fromLTRB(
+                outerPadding,
+                extraCompact
+                    ? 8
+                    : compact
+                    ? 12
+                    : 20,
+                outerPadding,
+                extraCompact
+                    ? 10
+                    : compact
+                    ? 14
+                    : 24,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: extraCompact ? 10 : 12,
+                      vertical: extraCompact ? 5 : 6,
                     ),
-                    const SizedBox(height: 24),
-                    Text(
-                      '알림 설정 전에\n먼저 안내드릴게요',
-                      style: TextStyle(
-                        color: context.colors.textPrimary,
-                        fontSize: 28,
-                        fontWeight: FontWeight.w800,
-                        height: 1.2,
-                        letterSpacing: -0.8,
-                      ),
+                    decoration: BoxDecoration(
+                      color: AppColors.accent.withAlpha(18),
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(color: AppColors.accent.withAlpha(38)),
                     ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'PinStock은 속보, 급등락, 관심 키워드 소식을 보낼 때만 알림 권한을 사용합니다. 아래 버튼을 눌렀을 때만 시스템 권한 창이 열립니다.',
-                      style: TextStyle(
-                        color: context.colors.textSecondary,
-                        fontSize: 14,
-                        height: 1.5,
-                      ),
-                    ),
-                    const SizedBox(height: 28),
-                    const _FeatureCard(
-                      icon: Icons.campaign_rounded,
-                      title: '속보 알림',
-                      description: '시장 영향도가 큰 뉴스를 빠르게 알려드려요.',
-                    ),
-                    const SizedBox(height: 12),
-                    const _FeatureCard(
-                      icon: Icons.show_chart_rounded,
-                      title: '급등락 감시',
-                      description: '설정한 기준을 넘는 변동이 생기면 즉시 알려드려요.',
-                    ),
-                    const SizedBox(height: 12),
-                    const _FeatureCard(
-                      icon: Icons.sell_rounded,
-                      title: '관심 키워드 추적',
-                      description: '내가 등록한 종목과 키워드가 뉴스에 나오면 알려드려요.',
-                    ),
-                    const SizedBox(height: 28),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: context.colors.surface,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: context.colors.border),
-                      ),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Icon(
-                            Icons.info_outline_rounded,
-                            color: context.colors.textSecondary,
-                            size: 18,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: extraCompact ? 6 : 7,
+                          height: extraCompact ? 6 : 7,
+                          decoration: const BoxDecoration(
+                            color: AppColors.accent,
+                            shape: BoxShape.circle,
                           ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              '지금 건너뛰어도 괜찮습니다. 나중에 설정 화면에서 다시 켤 수 있어요.',
-                              style: TextStyle(
+                        ),
+                        SizedBox(width: extraCompact ? 6 : 8),
+                        Text(
+                          '알림 안내',
+                          style: TextStyle(
+                            color: AppColors.accent,
+                            fontSize: extraCompact ? 11 : 12,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: -0.2,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  SizedBox(height: extraCompact ? 10 : 20),
+                  Text(
+                    'PinStock은 속보, 급등락, 관심 키워드, 장 시작·마감 알림에만 권한을 사용합니다. 버튼을 누를 때만 권한 창이 열립니다.',
+                    style: TextStyle(
+                      color: context.colors.textSecondary,
+                      fontSize: bodySize,
+                      height: extraCompact ? 1.3 : 1.4,
+                    ),
+                  ),
+                  SizedBox(height: blockGap),
+                  Expanded(
+                    child: Column(
+                      children: [
+                        _FeatureCard(
+                          icon: Icons.campaign_rounded,
+                          title: '속보 알림',
+                          description: '중요 뉴스를 빠르게 알려드려요.',
+                          compact: compact,
+                          extraCompact: extraCompact,
+                        ),
+                        SizedBox(height: cardGap),
+                        _FeatureCard(
+                          icon: Icons.show_chart_rounded,
+                          title: '급등락 감시',
+                          description: '기준을 넘는 변동을 바로 알려드려요.',
+                          compact: compact,
+                          extraCompact: extraCompact,
+                        ),
+                        SizedBox(height: cardGap),
+                        _FeatureCard(
+                          icon: Icons.sell_rounded,
+                          title: '관심 키워드 추적',
+                          description: '등록한 종목과 키워드를 알려드려요.',
+                          compact: compact,
+                          extraCompact: extraCompact,
+                        ),
+                        SizedBox(height: cardGap),
+                        _FeatureCard(
+                          icon: Icons.access_time_filled_rounded,
+                          title: '장 시작/마감 알림',
+                          description: '장 시작·마감 시간을 바로 알려드려요.',
+                          compact: compact,
+                          extraCompact: extraCompact,
+                        ),
+                        SizedBox(height: extraCompact ? 8 : 12),
+                        if (!extraCompact) const Spacer(),
+                        Container(
+                          width: double.infinity,
+                          padding: EdgeInsets.all(
+                            extraCompact
+                                ? 10
+                                : compact
+                                ? 12
+                                : 14,
+                          ),
+                          decoration: BoxDecoration(
+                            color: context.colors.surface,
+                            borderRadius: BorderRadius.circular(
+                              extraCompact ? 14 : 16,
+                            ),
+                            border: Border.all(color: context.colors.border),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Icon(
+                                Icons.info_outline_rounded,
                                 color: context.colors.textSecondary,
-                                fontSize: 12,
-                                height: 1.45,
+                                size: extraCompact
+                                    ? 14
+                                    : compact
+                                    ? 16
+                                    : 18,
+                              ),
+                              SizedBox(
+                                width: extraCompact
+                                    ? 6
+                                    : compact
+                                    ? 8
+                                    : 10,
+                              ),
+                              Expanded(
+                                child: Text(
+                                  '지금 건너뛰고 나중에 설정에서 켤 수 있어요.',
+                                  style: TextStyle(
+                                    color: context.colors.textSecondary,
+                                    fontSize: extraCompact
+                                        ? 10
+                                        : compact
+                                        ? 11
+                                        : 12,
+                                    height: extraCompact ? 1.25 : 1.35,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  SizedBox(height: buttonTopGap),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      onPressed: _submitting
+                          ? null
+                          : _handleEnableNotifications,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.accent,
+                        foregroundColor: Colors.white,
+                        padding: EdgeInsets.symmetric(
+                          vertical: extraCompact
+                              ? 12
+                              : compact
+                              ? 14
+                              : 16,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(
+                            extraCompact ? 14 : 16,
+                          ),
+                        ),
+                      ),
+                      child: _submitting
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : Text(
+                              '알림 설정하기',
+                              style: TextStyle(
+                                fontSize: extraCompact
+                                    ? 13
+                                    : compact
+                                    ? 14
+                                    : 15,
+                                fontWeight: FontWeight.w700,
                               ),
                             ),
-                          ),
-                        ],
-                      ),
                     ),
-                    const SizedBox(height: 18),
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton(
-                        onPressed: _submitting
-                            ? null
-                            : _handleEnableNotifications,
-                        style: FilledButton.styleFrom(
-                          backgroundColor: AppColors.accent,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
+                  ),
+                  SizedBox(
+                    height: extraCompact
+                        ? 2
+                        : compact
+                        ? 4
+                        : 10,
+                  ),
+                  SizedBox(
+                    width: double.infinity,
+                    child: TextButton(
+                      onPressed: _submitting ? null : _handleSkip,
+                      style: TextButton.styleFrom(
+                        foregroundColor: context.colors.textSecondary,
+                        padding: EdgeInsets.symmetric(
+                          vertical: extraCompact
+                              ? 8
+                              : compact
+                              ? 10
+                              : 14,
                         ),
-                        child: _submitting
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : const Text(
-                                '알림 설정하기',
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
                       ),
-                    ),
-                    const SizedBox(height: 10),
-                    SizedBox(
-                      width: double.infinity,
-                      child: TextButton(
-                        onPressed: _submitting ? null : _handleSkip,
-                        style: TextButton.styleFrom(
-                          foregroundColor: context.colors.textSecondary,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                        ),
-                        child: const Text(
-                          '나중에 둘러보기',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                          ),
+                      child: Text(
+                        '나중에 둘러보기',
+                        style: TextStyle(
+                          fontSize: extraCompact
+                              ? 12
+                              : compact
+                              ? 13
+                              : 14,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             );
           },
@@ -222,54 +338,113 @@ class _FeatureCard extends StatelessWidget {
   final IconData icon;
   final String title;
   final String description;
+  final bool compact;
+  final bool extraCompact;
 
   const _FeatureCard({
     required this.icon,
     required this.title,
     required this.description,
+    required this.compact,
+    required this.extraCompact,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(
+        extraCompact
+            ? 10
+            : compact
+            ? 12
+            : 16,
+      ),
       decoration: BoxDecoration(
         color: context.colors.surface,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(
+          extraCompact
+              ? 14
+              : compact
+              ? 16
+              : 18,
+        ),
         border: Border.all(color: context.colors.border),
       ),
       child: Row(
         children: [
           Container(
-            width: 42,
-            height: 42,
+            width: extraCompact
+                ? 32
+                : compact
+                ? 36
+                : 42,
+            height: extraCompact
+                ? 32
+                : compact
+                ? 36
+                : 42,
             decoration: BoxDecoration(
               color: AppColors.accent.withAlpha(18),
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(
+                extraCompact
+                    ? 10
+                    : compact
+                    ? 12
+                    : 14,
+              ),
             ),
-            child: Icon(icon, color: AppColors.accent, size: 22),
+            child: Icon(
+              icon,
+              color: AppColors.accent,
+              size: extraCompact
+                  ? 18
+                  : compact
+                  ? 20
+                  : 22,
+            ),
           ),
-          const SizedBox(width: 14),
+          SizedBox(
+            width: extraCompact
+                ? 8
+                : compact
+                ? 10
+                : 14,
+          ),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   title,
                   style: TextStyle(
                     color: context.colors.textPrimary,
-                    fontSize: 14,
+                    fontSize: extraCompact
+                        ? 12
+                        : compact
+                        ? 13
+                        : 14,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                const SizedBox(height: 4),
+                SizedBox(
+                  height: extraCompact
+                      ? 1
+                      : compact
+                      ? 2
+                      : 4,
+                ),
                 Text(
                   description,
                   style: TextStyle(
                     color: context.colors.textSecondary,
-                    fontSize: 12,
-                    height: 1.4,
+                    fontSize: extraCompact
+                        ? 10
+                        : compact
+                        ? 11
+                        : 12,
+                    height: extraCompact ? 1.2 : 1.3,
                   ),
                 ),
               ],

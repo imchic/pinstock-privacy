@@ -1,4 +1,4 @@
-package com.imchic.pinstock
+package com.imchic.stockhub
 
 import android.app.AlarmManager
 import android.app.PendingIntent
@@ -12,6 +12,25 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
+	private fun clearScheduledNotificationCache() {
+		val preferenceNames = listOf(
+			"scheduled_notifications",
+			"flutter_local_notifications_plugin"
+		)
+
+		preferenceNames.forEach { preferenceName ->
+			applicationContext
+				.getSharedPreferences(preferenceName, MODE_PRIVATE)
+				.edit()
+				.clear()
+				.commit()
+
+			if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+				applicationContext.deleteSharedPreferences(preferenceName)
+			}
+		}
+	}
+
 	private fun cancelScheduledNotification(id: Int) {
 		val intent = Intent(applicationContext, ScheduledNotificationReceiver::class.java)
 		var flags = PendingIntent.FLAG_UPDATE_CURRENT
@@ -30,15 +49,11 @@ class MainActivity : FlutterActivity() {
 
 		MethodChannel(
 			flutterEngine.dartExecutor.binaryMessenger,
-			"com.imchic.pinstock/notification_cache"
+			"com.imchic.stockhub/notification_cache"
 		).setMethodCallHandler { call, result ->
 			when (call.method) {
 				"clearScheduledNotificationsCache" -> {
-					applicationContext
-						.getSharedPreferences("scheduled_notifications", MODE_PRIVATE)
-						.edit()
-						.remove("scheduled_notifications")
-						.apply()
+					clearScheduledNotificationCache()
 					result.success(null)
 				}
 

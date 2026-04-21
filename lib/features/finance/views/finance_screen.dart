@@ -7,7 +7,7 @@ import 'package:pinstock/config/theme/colors.dart';
 import 'package:shimmer/shimmer.dart';
 
 import '../../../data/models/finance_news.dart';
-import '../../../data/models/index.dart' show News;
+import '../../../data/models/index.dart' show Keyword, News;
 import '../../../data/models/market_index.dart';
 import '../../../providers/index.dart';
 import '../../../utils/ad_service.dart';
@@ -64,6 +64,9 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
   Timer? _newsRefreshTimer;
   Timer? _marketStatusTimer;
   bool _isRefreshingAiSummary = false;
+  bool _showBullishAiPicks = true;
+  String? _selectedAiSector;
+  bool? _selectedAiSectorIsBull;
 
   @override
   void initState() {
@@ -79,6 +82,24 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
       if (!mounted) return;
       setState(() {});
     });
+  }
+
+  @override
+  void didUpdateWidget(covariant FinanceScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (oldWidget.showEconomicOnly == widget.showEconomicOnly) {
+      return;
+    }
+
+    if (widget.showEconomicOnly) {
+      _tabController?.dispose();
+      _tabController = null;
+      return;
+    }
+
+    _tabController?.dispose();
+    _tabController = TabController(length: 7, vsync: this);
   }
 
   @override
@@ -169,93 +190,155 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
                     ],
                   ),
                 ),
-                const SizedBox(width: 12),
-                Consumer(
-                  builder: (context, ref, _) {
-                    final indicesAsync = ref.watch(marketIndicesProvider);
-                    final updatedAt =
-                        indicesAsync.valueOrNull?.firstOrNull?.updatedAt;
-                    final timeStr = updatedAt != null
-                        ? '${updatedAt.hour.toString().padLeft(2, '0')}:${updatedAt.minute.toString().padLeft(2, '0')}:${updatedAt.second.toString().padLeft(2, '0')}'
-                        : null;
-                    final statusColor = indicesAsync.isLoading
-                        ? AppColors.orange
-                        : indicesAsync.hasError
-                        ? AppColors.red
-                        : AppColors.green;
-
-                    return GestureDetector(
-                      onTap: () {
-                        ref.invalidate(marketIndicesProvider);
-                        _showToast('시장 지수 새로고침 중…');
-                      },
-                      child: Container(
-                        width: 112,
-                        constraints: const BoxConstraints(minHeight: 64),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 10,
-                        ),
-                        decoration: BoxDecoration(
-                          color: context.colors.surfaceLight,
-                          borderRadius: BorderRadius.circular(18),
-                          border: Border.all(
-                            color: statusColor.withValues(alpha: 0.16),
-                          ),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Container(
-                                  width: 8,
-                                  height: 8,
-                                  decoration: BoxDecoration(
-                                    color: statusColor,
-                                    shape: BoxShape.circle,
-                                  ),
-                                ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  indicesAsync.isLoading
-                                      ? '갱신 중'
-                                      : indicesAsync.hasError
-                                      ? '오류'
-                                      : '업데이트',
-                                  style: TextStyle(
-                                    color: statusColor,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: 0.2,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              timeStr ?? '--:--:--',
-                              style: TextStyle(
-                                color: context.colors.textPrimary,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: -0.2,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
               ],
             ),
             const SizedBox(height: 10),
-            _buildMarketStatusBadge(title: '국내', status: domesticMarketStatus),
-            const SizedBox(height: 6),
-            _buildMarketStatusBadge(title: '미국', status: usMarketStatus),
+            Consumer(
+              builder: (context, ref, _) {
+                final indicesAsync = ref.watch(marketIndicesProvider);
+                final updatedAt =
+                    indicesAsync.valueOrNull?.firstOrNull?.updatedAt;
+                final timeStr = updatedAt != null
+                    ? '${updatedAt.hour.toString().padLeft(2, '0')}:${updatedAt.minute.toString().padLeft(2, '0')}:${updatedAt.second.toString().padLeft(2, '0')}'
+                    : null;
+                final statusColor = indicesAsync.isLoading
+                    ? AppColors.orange
+                    : indicesAsync.hasError
+                    ? AppColors.red
+                    : AppColors.green;
+                final statusLabel = indicesAsync.isLoading
+                    ? '동기화 중'
+                    : indicesAsync.hasError
+                    ? '오류 발생'
+                    : '실시간 반영';
+
+                return GestureDetector(
+                  onTap: () {
+                    ref.invalidate(marketIndicesProvider);
+                    _showToast('시장 지수 새로고침 중…');
+                  },
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
+                    decoration: BoxDecoration(
+                      color: context.colors.surface,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: context.colors.border),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: statusColor.withValues(alpha: 0.10),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(
+                            Icons.query_stats_rounded,
+                            size: 18,
+                            color: statusColor,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Text(
+                                    '시장 지수 업데이트',
+                                    style: TextStyle(
+                                      color: context.colors.textPrimary,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: -0.3,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    width: 6,
+                                    height: 6,
+                                    decoration: BoxDecoration(
+                                      color: statusColor,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 5),
+                                  Expanded(
+                                    child: Text(
+                                      statusLabel,
+                                      style: TextStyle(
+                                        color: context.colors.textSecondary,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w600,
+                                        letterSpacing: -0.1,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                timeStr == null
+                                    ? '데이터 수신 대기 중'
+                                    : '최근 반영 시각 $timeStr',
+                                style: TextStyle(
+                                  color: context.colors.textSecondary,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500,
+                                  letterSpacing: -0.2,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 7,
+                          ),
+                          decoration: BoxDecoration(
+                            color: context.colors.surfaceLight,
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            '새로고침',
+                            style: TextStyle(
+                              color: context.colors.textSecondary,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: -0.1,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Flexible(
+                  child: _buildMarketStatusBadge(
+                    title: '국내',
+                    status: domesticMarketStatus,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Flexible(
+                  child: _buildMarketStatusBadge(
+                    title: '해외',
+                    status: usMarketStatus,
+                  ),
+                ),
+              ],
+            ),
             const SizedBox(height: 8),
             _buildInvestmentDisclaimer(),
           ],
@@ -370,12 +453,16 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
     return _isUsEasternDst(_utcNow()) ? 13 : 14;
   }
 
+  String _formatTime(int hour, int minute) {
+    final hourText = hour.toString().padLeft(2, '0');
+    final minuteText = minute.toString().padLeft(2, '0');
+    return '$hourText:$minuteText';
+  }
+
   String _formatUsMarketTimeInKorea(int hour, int minute) {
     final base = DateTime.utc(2000, 1, 1, hour, minute);
     final koreaTime = base.add(Duration(hours: _usToKoreaOffsetHours()));
-    final hourText = koreaTime.hour.toString().padLeft(2, '0');
-    final minuteText = koreaTime.minute.toString().padLeft(2, '0');
-    return '$hourText:$minuteText';
+    return _formatTime(koreaTime.hour, koreaTime.minute);
   }
 
   bool _isUsEasternDst(DateTime utcTime) {
@@ -414,91 +501,91 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
   _MarketStatusInfo _getCurrentMarketStatus() {
     final now = _koreaNow();
     if (now.weekday == DateTime.saturday || now.weekday == DateTime.sunday) {
-      return const _MarketStatusInfo(
-        label: '국내장 휴장',
-        detail: '주말에는 국내 시장이 열리지 않아요',
-        color: Color(0xFF9AA4AF),
+      return _MarketStatusInfo(
+        label: '휴장',
+        detail: _formatTime(8, 0),
+        color: const Color(0xFF9AA4AF),
       );
     }
 
     final seconds = now.hour * 3600 + now.minute * 60 + now.second;
 
     if (seconds < _marketTimeSeconds(8, 0)) {
-      return const _MarketStatusInfo(
+      return _MarketStatusInfo(
         label: '개장 전',
-        detail: 'NXT 프리마켓 08:00 시작',
+        detail: _formatTime(8, 0),
         color: AppColors.orange,
       );
     }
 
     if (seconds < _marketTimeSeconds(8, 50)) {
-      return const _MarketStatusInfo(
-        label: 'NXT 프리마켓 진행 중',
-        detail: 'KRX 09:00, NXT 메인 09:00:30 시작',
+      return _MarketStatusInfo(
+        label: '프리마켓',
+        detail: _formatTime(8, 50),
         color: AppColors.green,
       );
     }
 
     if (seconds < _marketTimeSeconds(9, 0)) {
-      return const _MarketStatusInfo(
-        label: '정규장 대기',
-        detail: 'KRX 09:00, NXT 메인 09:00:30 시작',
+      return _MarketStatusInfo(
+        label: '정규장',
+        detail: _formatTime(9, 0),
         color: AppColors.orange,
       );
     }
 
     if (seconds < _marketTimeSeconds(9, 0, 30)) {
-      return const _MarketStatusInfo(
-        label: 'KRX 정규장 시작',
-        detail: 'NXT 메인마켓 09:00:30 시작',
+      return _MarketStatusInfo(
+        label: '정규장',
+        detail: _formatTime(9, 0),
         color: AppColors.accent,
       );
     }
 
     if (seconds < _marketTimeSeconds(15, 20)) {
-      return const _MarketStatusInfo(
-        label: 'KRX·NXT 메인 진행 중',
-        detail: 'NXT 메인마켓 15:20 종료',
+      return _MarketStatusInfo(
+        label: '정규장',
+        detail: _formatTime(15, 20),
         color: AppColors.green,
       );
     }
 
     if (seconds < _marketTimeSeconds(15, 30)) {
-      return const _MarketStatusInfo(
-        label: 'KRX 정규장 진행 중',
-        detail: 'NXT 종가매매·KRX 마감 15:30',
+      return _MarketStatusInfo(
+        label: '정규장',
+        detail: _formatTime(15, 30),
         color: AppColors.green,
       );
     }
 
     if (seconds < _marketTimeSeconds(15, 40)) {
-      return const _MarketStatusInfo(
-        label: 'NXT 종가매매 진행 중',
-        detail: '애프터마켓 15:40 시작',
+      return _MarketStatusInfo(
+        label: '종가매매',
+        detail: _formatTime(15, 40),
         color: AppColors.accent,
       );
     }
 
     if (seconds < _marketTimeSeconds(16, 0)) {
-      return const _MarketStatusInfo(
-        label: 'NXT 종가·애프터 진행 중',
-        detail: '종가매매 16:00 종료',
+      return _MarketStatusInfo(
+        label: '애프터마켓',
+        detail: _formatTime(16, 0),
         color: AppColors.info,
       );
     }
 
     if (seconds < _marketTimeSeconds(20, 0)) {
-      return const _MarketStatusInfo(
-        label: 'NXT 애프터마켓 진행 중',
-        detail: '국내장 종료까지 20:00',
+      return _MarketStatusInfo(
+        label: '애프터마켓',
+        detail: _formatTime(20, 0),
         color: AppColors.info,
       );
     }
 
-    return const _MarketStatusInfo(
-      label: '장 종료',
-      detail: '다음 NXT 프리마켓 08:00 시작',
-      color: Color(0xFF9AA4AF),
+    return _MarketStatusInfo(
+      label: '장마감',
+      detail: _formatTime(8, 0),
+      color: const Color(0xFF9AA4AF),
     );
   }
 
@@ -508,10 +595,10 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
         now.weekday == DateTime.saturday || now.weekday == DateTime.sunday;
 
     if (isWeekend) {
-      return const _MarketStatusInfo(
-        label: '미국장 휴장',
-        detail: '주말에는 뉴욕 시장이 열리지 않아요',
-        color: Color(0xFF9AA4AF),
+      return _MarketStatusInfo(
+        label: '휴장',
+        detail: _formatUsMarketTimeInKorea(4, 0),
+        color: const Color(0xFF9AA4AF),
       );
     }
 
@@ -519,39 +606,39 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
 
     if (seconds < _marketTimeSeconds(4, 0)) {
       return _MarketStatusInfo(
-        label: '장 종료',
-        detail: '한국시간 프리마켓 ${_formatUsMarketTimeInKorea(4, 0)} 시작',
+        label: '장마감',
+        detail: _formatUsMarketTimeInKorea(4, 0),
         color: const Color(0xFF9AA4AF),
       );
     }
 
     if (seconds < _marketTimeSeconds(9, 30)) {
       return _MarketStatusInfo(
-        label: '프리마켓 진행 중',
-        detail: '한국시간 정규장 ${_formatUsMarketTimeInKorea(9, 30)} 시작',
+        label: '데이마켓',
+        detail: _formatUsMarketTimeInKorea(9, 30),
         color: AppColors.orange,
       );
     }
 
     if (seconds < _marketTimeSeconds(16, 0)) {
       return _MarketStatusInfo(
-        label: '정규장 진행 중',
-        detail: '한국시간 정규장 ${_formatUsMarketTimeInKorea(16, 0)} 마감',
+        label: '정규장',
+        detail: _formatUsMarketTimeInKorea(16, 0),
         color: AppColors.green,
       );
     }
 
     if (seconds < _marketTimeSeconds(20, 0)) {
       return _MarketStatusInfo(
-        label: '애프터마켓 진행 중',
-        detail: '한국시간 시간외 ${_formatUsMarketTimeInKorea(20, 0)} 종료',
+        label: '애프터마켓',
+        detail: _formatUsMarketTimeInKorea(20, 0),
         color: AppColors.info,
       );
     }
 
     return _MarketStatusInfo(
-      label: '장 종료',
-      detail: '다음 프리마켓 ${_formatUsMarketTimeInKorea(4, 0)} 시작',
+      label: '장마감',
+      detail: _formatUsMarketTimeInKorea(4, 0),
       color: const Color(0xFF9AA4AF),
     );
   }
@@ -1161,6 +1248,10 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
     setState(() => _isRefreshingAiSummary = true);
 
     try {
+      ref.invalidate(stockMarketNewsProvider);
+      ref.invalidate(allFinanceNewsProvider);
+      ref.invalidate(marketIndicesProvider);
+
       final refreshedSummary = await ref.refresh(
         aiMarketSummaryProvider.future,
       );
@@ -1198,7 +1289,13 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
         final isAiRefreshing = _isRefreshingAiSummary || summaryAsync.isLoading;
         return GestureDetector(
           onTap: summaryAsync.hasValue
-              ? () => _showAiRelatedNewsSheet(context, ref, summaryAsync.value!)
+              ? () => _showAiRelatedNewsSheet(
+                  context,
+                  ref,
+                  summaryAsync.value!,
+                  selectedSector: _selectedAiSector,
+                  selectedSectorIsBull: _selectedAiSectorIsBull,
+                )
               : null,
           child: Container(
             margin: const EdgeInsets.fromLTRB(16, 8, 16, 4),
@@ -1332,8 +1429,10 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
   void _showAiRelatedNewsSheet(
     BuildContext context,
     WidgetRef ref,
-    String summaryText,
-  ) {
+    String summaryText, {
+    String? selectedSector,
+    bool? selectedSectorIsBull,
+  }) {
     // 요약 텍스트에서 단어 단위 키워드 추출 (2글자 이상 한글/영문)
     final keywords = RegExp(r'[가-힣a-zA-Z]{2,}')
         .allMatches(summaryText)
@@ -1341,6 +1440,52 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
         .where((w) => !_aiStopWords.contains(w))
         .toSet()
         .toList();
+
+    if (selectedSector != null && selectedSector.trim().isNotEmpty) {
+      keywords.addAll(_extractSectorKeywords(selectedSector));
+
+      final pickPattern = RegExp(r'^(강세추천|약세주의)\s+(코스피|코스닥|나스닥|코인)\s*:');
+      final itemPattern = RegExp(r'^(.+?)(?:\[([^\]]+)\])?\((.+?)\)$');
+      final trailingTickerPattern = RegExp(r'^(.*?)\s+([A-Z]{2,5})$');
+
+      for (final line in summaryText.split('\n')) {
+        final trimmed = line.trim();
+        if (!pickPattern.hasMatch(trimmed)) continue;
+
+        final pickMatch = pickPattern.firstMatch(trimmed);
+        final sentiment = pickMatch?.group(1);
+        if (selectedSectorIsBull != null) {
+          final isBullLine = sentiment == '강세추천';
+          if (isBullLine != selectedSectorIsBull) continue;
+        }
+
+        final rest = trimmed.replaceFirst(pickPattern, '').trim();
+        final rawItems = rest.split(RegExp(r',\s*(?=[^)]*(?:\(|$))'));
+
+        for (final rawItem in rawItems) {
+          final item = rawItem.trim();
+          if (item.isEmpty) continue;
+
+          final match = itemPattern.firstMatch(item);
+          if (match == null) continue;
+
+          final rawName = match.group(1)?.trim() ?? '';
+          final sectorTag = match.group(2)?.trim() ?? '';
+          final reason = match.group(3)?.trim() ?? '';
+
+          if (!_matchesSectorTag(selectedSector, sectorTag)) continue;
+
+          final tickerMatch = trailingTickerPattern.firstMatch(rawName);
+          final displayName = tickerMatch != null
+              ? tickerMatch.group(1)!.trim()
+              : rawName;
+
+          keywords.add(displayName);
+          keywords.addAll(_extractSectorKeywords(sectorTag));
+          keywords.addAll(_extractSectorKeywords(reason));
+        }
+      }
+    }
 
     final allNewsAsync = ref.read(allFinanceNewsProvider);
     final allNews = allNewsAsync.valueOrNull ?? [];
@@ -1361,7 +1506,8 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => _AiRelatedNewsSheet(newsList: related),
+      builder: (_) =>
+          _AiRelatedNewsSheet(newsList: related, titleSuffix: selectedSector),
     );
   }
 
@@ -1404,6 +1550,80 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
     'to',
   };
 
+  String _normalizeAiText(String text) {
+    return text.toLowerCase().replaceAll(RegExp(r'[^0-9a-zA-Z가-힣]+'), ' ');
+  }
+
+  Set<String> _extractSectorKeywords(String sector) {
+    final normalized = _normalizeAiText(sector).trim();
+    final keywords = <String>{};
+
+    if (normalized.isNotEmpty) {
+      keywords.add(normalized);
+    }
+
+    for (final match in RegExp(r'[a-zA-Z]+|[가-힣]{2,}').allMatches(sector)) {
+      final token = match.group(0)?.toLowerCase().trim() ?? '';
+      if (token.length >= 2) {
+        keywords.add(token);
+      }
+    }
+
+    return keywords;
+  }
+
+  int _scorePickForSector({
+    required String sector,
+    required String market,
+    required String name,
+    required String sectorTag,
+    required String reason,
+  }) {
+    final keywords = _extractSectorKeywords(sector);
+    if (keywords.isEmpty) return 0;
+
+    final corpus = _normalizeAiText('$market $name $sectorTag $reason');
+    var score = 0;
+
+    if (_matchesSectorTag(sector, sectorTag)) {
+      score += 8;
+    }
+
+    for (final keyword in keywords) {
+      if (corpus.contains(keyword)) {
+        score += keyword.length >= 4 ? 3 : 2;
+      }
+    }
+
+    if (corpus.contains(_normalizeAiText(sector))) {
+      score += 4;
+    }
+
+    return score;
+  }
+
+  bool _matchesSectorTag(String selectedSector, String sectorTag) {
+    if (sectorTag.trim().isEmpty) return false;
+
+    final selectedKeywords = _extractSectorKeywords(selectedSector);
+    final tagKeywords = _extractSectorKeywords(sectorTag);
+
+    if (selectedKeywords.isEmpty || tagKeywords.isEmpty) {
+      return false;
+    }
+
+    final selectedText = _normalizeAiText(selectedSector).trim();
+    final tagText = _normalizeAiText(sectorTag).trim();
+
+    return selectedKeywords.any((keyword) {
+      if (keyword.length < 2) return false;
+      return tagKeywords.contains(keyword) ||
+          (selectedText.isNotEmpty && tagText == selectedText) ||
+          (selectedText.isNotEmpty && tagText.contains(selectedText)) ||
+          (tagText.isNotEmpty && selectedText.contains(tagText));
+    });
+  }
+
   // ── AI 요약 하이라이트 렌더러 ─────────────────────
   Widget _buildHighlightedSummary(String text) {
     final lines = text.split('\n').where((l) => l.trim().isNotEmpty).toList();
@@ -1412,7 +1632,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
     final analysisTitlePattern = RegExp(r'^분석제목\s*:');
     final analysisContentPattern = RegExp(r'^분석내용\s*:');
     final sectorPattern = RegExp(r'^(강세섹터|약세섹터)\s*:');
-    final pickPattern = RegExp(r'^(코스피|코스닥|나스닥|코인)\s*:');
+    final pickPattern = RegExp(r'^(강세추천|약세주의)\s+(코스피|코스닥|나스닥|코인)\s*:');
 
     final highlights = <String>[];
     final analysisTitles = <String>[];
@@ -1434,6 +1654,9 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
         pickLines.add(t);
       }
     }
+
+    final selectedSector = _selectedAiSector;
+    final selectedSectorIsBull = _selectedAiSectorIsBull;
 
     /// **굵게** 마크다운을 파싱해 TextSpan 반환
     List<TextSpan> parseBold(String line, {TextStyle? base}) {
@@ -1506,31 +1729,47 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
               child: Wrap(
                 spacing: 4,
                 runSpacing: 3,
-                children: sectors
-                    .map(
-                      (sector) => Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: color.withValues(alpha: 0.08),
-                          borderRadius: BorderRadius.circular(4),
-                          border: Border.all(
-                            color: color.withValues(alpha: 0.25),
-                          ),
-                        ),
-                        child: Text(
-                          sector,
-                          style: TextStyle(
-                            color: color,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                          ),
+                children: sectors.map((sector) {
+                  final isSelected = selectedSector == sector;
+                  return GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _selectedAiSector = isSelected ? null : sector;
+                        _selectedAiSectorIsBull = isSelected ? null : isBull;
+                        if (!isSelected) {
+                          _showBullishAiPicks = isBull;
+                        }
+                      });
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? color.withValues(alpha: 0.18)
+                            : color.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(
+                          color: isSelected
+                              ? color.withValues(alpha: 0.75)
+                              : color.withValues(alpha: 0.25),
                         ),
                       ),
-                    )
-                    .toList(),
+                      child: Text(
+                        sector,
+                        style: TextStyle(
+                          color: color,
+                          fontSize: 10,
+                          fontWeight: isSelected
+                              ? FontWeight.w800
+                              : FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
               ),
             ),
           ],
@@ -1538,74 +1777,205 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
       );
     }
 
-    // ── 추천 종목 줄 ──
-    const pickColors = {
-      '코스피': AppColors.accent,
-      '코스닥': AppColors.accent,
-      '나스닥': AppColors.orange,
-      '코인': Color(0xFFF7931A),
-    };
+    final parsedPickRows = pickLines
+        .map((line) {
+          final m = pickPattern.firstMatch(line.trim());
+          final sentiment = m?.group(1) ?? '';
+          final marketLabel = m?.group(2) ?? '';
+          final label = '$sentiment $marketLabel';
+          final rest = line.trim().replaceFirst(pickPattern, '').trim();
+          final isNasdaq = marketLabel == '나스닥';
+          final isCoin = marketLabel == '코인';
 
-    Widget buildPickRow(String line, bool isLast) {
-      final m = pickPattern.firstMatch(line.trim());
-      final label = m?.group(1) ?? '';
-      final color = pickColors[label] ?? AppColors.accent;
-      final rest = line.trim().replaceFirst(pickPattern, '').trim();
-      final isNasdaq = label == '나스닥';
-      final isCoin = label == '코인';
+          final itemPattern = RegExp(r'^(.+?)(?:\[([^\]]+)\])?\((.+?)\)$');
+          final trailingTickerPattern = RegExp(r'^(.*?)\s+([A-Z]{2,5})$');
+          final rawItems = rest.split(RegExp(r',\s*(?=[^)]*(?:\(|$))'));
+          final items = rawItems
+              .map((t) => t.trim())
+              .where((t) => _isValidAiPickToken(t))
+              .map((t) {
+                final im = itemPattern.firstMatch(t);
+                final rawName = im != null ? im.group(1)!.trim() : t;
+                final sectorTag = im?.group(2)?.trim() ?? '';
+                final tickerMatch = trailingTickerPattern.firstMatch(rawName);
+                final coinEnglishKeyword = switch (rawName) {
+                  '비트코인' => 'Bitcoin',
+                  '비트코인 BTC' => 'BTC',
+                  _ => null,
+                };
+                final displayName = isNasdaq && tickerMatch != null
+                    ? tickerMatch.group(1)!.trim()
+                    : rawName;
+                final linkKeyword = isNasdaq && tickerMatch != null
+                    ? tickerMatch.group(2)!.trim()
+                    : isCoin && coinEnglishKeyword != null
+                    ? coinEnglishKeyword
+                    : rawName;
+                final reason = im != null ? im.group(3)!.trim() : '';
+                final sectorScore = selectedSector == null
+                    ? 0
+                    : _scorePickForSector(
+                        sector: selectedSector,
+                        market: marketLabel,
+                        name: displayName,
+                        sectorTag: sectorTag,
+                        reason: reason,
+                      );
+                return (
+                  name: displayName,
+                  linkKeyword: linkKeyword,
+                  sectorTag: sectorTag,
+                  reason: reason,
+                  sectorScore: sectorScore,
+                );
+              })
+              .where((item) => _isValidAiPickToken(item.name))
+              .toList();
 
-      final itemPattern = RegExp(r'^(.+?)\((.+?)\)$');
-      final trailingTickerPattern = RegExp(r'^(.*?)\s+([A-Z]{2,5})$');
-      final rawItems = rest.split(RegExp(r',\s*(?=[^)]*(?:\(|$))'));
-      final items = rawItems
-          .map((t) => t.trim())
-          .where((t) => t.isNotEmpty)
-          .map((t) {
-            final im = itemPattern.firstMatch(t);
-            final rawName = im != null ? im.group(1)!.trim() : t;
-            final tickerMatch = trailingTickerPattern.firstMatch(rawName);
-            final coinEnglishKeyword = switch (rawName) {
-              '비트코인' => 'Bitcoin',
-              '비트코인 BTC' => 'BTC',
-              _ => null,
-            };
-            final displayName = isNasdaq && tickerMatch != null
-                ? tickerMatch.group(1)!.trim()
-                : rawName;
-            final linkKeyword = isNasdaq && tickerMatch != null
-                ? tickerMatch.group(2)!.trim()
-                : isCoin && coinEnglishKeyword != null
-                ? coinEnglishKeyword
-                : rawName;
-            final reason = im != null ? im.group(2)!.trim() : '';
-            return (
-              name: displayName,
-              linkKeyword: linkKeyword,
-              reason: reason,
-            );
+          final matchesSentiment = selectedSectorIsBull == null
+              ? true
+              : (sentiment == '강세추천') == selectedSectorIsBull;
+
+          final visibleItems = selectedSector == null
+              ? items
+              : (matchesSentiment
+                      ? items.where((item) => item.sectorScore > 0).toList()
+                      : <
+                          ({
+                            String name,
+                            String linkKeyword,
+                            String sectorTag,
+                            String reason,
+                            int sectorScore,
+                          })
+                        >[]
+                  ..sort((a, b) => b.sectorScore.compareTo(a.sectorScore)));
+
+          return (label: label, sentiment: sentiment, items: visibleItems);
+        })
+        .where((row) => row.items.isNotEmpty)
+        .toList();
+
+    final displayPickRows = selectedSector != null
+        ? parsedPickRows
+        : pickLines.map((line) {
+            final m = pickPattern.firstMatch(line.trim());
+            final sentiment = m?.group(1) ?? '';
+            final marketLabel = m?.group(2) ?? '';
+            final label = '$sentiment $marketLabel';
+            final rest = line.trim().replaceFirst(pickPattern, '').trim();
+            final isNasdaq = marketLabel == '나스닥';
+            final isCoin = marketLabel == '코인';
+            final itemPattern = RegExp(r'^(.+?)(?:\[([^\]]+)\])?\((.+?)\)$');
+            final trailingTickerPattern = RegExp(r'^(.*?)\s+([A-Z]{2,5})$');
+            final rawItems = rest.split(RegExp(r',\s*(?=[^)]*(?:\(|$))'));
+            final items = rawItems
+                .map((t) => t.trim())
+                .where((t) => _isValidAiPickToken(t))
+                .map((t) {
+                  final im = itemPattern.firstMatch(t);
+                  final rawName = im != null ? im.group(1)!.trim() : t;
+                  final sectorTag = im?.group(2)?.trim() ?? '';
+                  final tickerMatch = trailingTickerPattern.firstMatch(rawName);
+                  final coinEnglishKeyword = switch (rawName) {
+                    '비트코인' => 'Bitcoin',
+                    '비트코인 BTC' => 'BTC',
+                    _ => null,
+                  };
+                  final displayName = isNasdaq && tickerMatch != null
+                      ? tickerMatch.group(1)!.trim()
+                      : rawName;
+                  final linkKeyword = isNasdaq && tickerMatch != null
+                      ? tickerMatch.group(2)!.trim()
+                      : isCoin && coinEnglishKeyword != null
+                      ? coinEnglishKeyword
+                      : rawName;
+                  final reason = im != null ? im.group(3)!.trim() : '';
+                  return (
+                    name: displayName,
+                    linkKeyword: linkKeyword,
+                    sectorTag: sectorTag,
+                    reason: reason,
+                    sectorScore: 0,
+                  );
+                })
+                .where((item) => _isValidAiPickToken(item.name))
+                .toList();
+            return (label: label, sentiment: sentiment, items: items);
+          }).toList();
+
+    final hasSectorFilteredPicks =
+        selectedSector != null && parsedPickRows.isNotEmpty;
+
+    Widget buildPickRow(
+      ({
+        String label,
+        String sentiment,
+        List<
+          ({
+            String name,
+            String linkKeyword,
+            String sectorTag,
+            String reason,
+            int sectorScore,
           })
-          .toList();
+        >
+        items,
+      })
+      row,
+      bool isLast,
+    ) {
+      final marketLabel = row.label.split(' ').last;
+      final items = row.items;
+      final isBullishRow = row.sentiment == '강세추천';
+      final accentColor = isBullishRow ? AppColors.green : AppColors.red;
 
       return Padding(
         padding: EdgeInsets.only(bottom: isLast ? 0 : 8),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 42,
-              padding: const EdgeInsets.only(top: 2),
-              child: Text(
-                label,
-                style: TextStyle(
-                  color: color,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                ),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
+          decoration: BoxDecoration(
+            color: context.colors.surface,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: context.colors.border),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: accentColor.withValues(alpha: 0.10),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      marketLabel,
+                      style: TextStyle(
+                        color: accentColor,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.1,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '${items.length}개 종목',
+                    style: TextStyle(
+                      color: context.colors.textSecondary,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(width: 4),
-            Expanded(
-              child: SingleChildScrollView(
+              const SizedBox(height: 10),
+              SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: Row(
                   children: items
@@ -1625,40 +1995,89 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
                             );
                           },
                           child: Container(
-                            margin: const EdgeInsets.only(right: 5),
-                            padding: const EdgeInsets.fromLTRB(7, 4, 7, 4),
+                            width: 156,
+                            height: 124,
+                            margin: const EdgeInsets.only(right: 8),
+                            padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
                             decoration: BoxDecoration(
-                              color: color.withValues(alpha: 0.08),
-                              borderRadius: BorderRadius.circular(6),
+                              color: context.colors.surfaceLight,
+                              borderRadius: BorderRadius.circular(12),
                               border: Border.all(
-                                color: color.withValues(alpha: 0.28),
+                                color: accentColor.withValues(alpha: 0.16),
                               ),
                             ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
                               children: [
-                                Text(
-                                  item.name,
-                                  style: TextStyle(
-                                    color: color,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: -0.3,
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        item.name,
+                                        style: TextStyle(
+                                          color: context.colors.textPrimary,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w800,
+                                          letterSpacing: -0.3,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Icon(
+                                      Icons.open_in_new_rounded,
+                                      size: 12,
+                                      color: context.colors.textSecondary,
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                SizedBox(
+                                  height: 25,
+                                  child: item.sectorTag.isNotEmpty
+                                      ? Align(
+                                          alignment: Alignment.centerLeft,
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 7,
+                                              vertical: 4,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: accentColor.withValues(
+                                                alpha: 0.08,
+                                              ),
+                                              borderRadius:
+                                                  BorderRadius.circular(999),
+                                            ),
+                                            child: Text(
+                                              item.sectorTag,
+                                              style: TextStyle(
+                                                color: accentColor,
+                                                fontSize: 9,
+                                                fontWeight: FontWeight.w800,
+                                              ),
+                                            ),
+                                          ),
+                                        )
+                                      : const SizedBox.shrink(),
+                                ),
+                                const SizedBox(height: 8),
+                                Expanded(
+                                  child: Text(
+                                    item.reason.isNotEmpty
+                                        ? item.reason
+                                        : '관련 뉴스 흐름을 반영한 종목입니다.',
+                                    style: TextStyle(
+                                      color: context.colors.textSecondary,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w500,
+                                      height: 1.4,
+                                    ),
+                                    maxLines: 3,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
-                                if (item.reason.isNotEmpty) ...[
-                                  const SizedBox(height: 1),
-                                  Text(
-                                    item.reason,
-                                    style: TextStyle(
-                                      color: color.withValues(alpha: 0.70),
-                                      fontSize: 9,
-                                      fontWeight: FontWeight.w500,
-                                      height: 1.3,
-                                    ),
-                                  ),
-                                ],
                               ],
                             ),
                           ),
@@ -1667,11 +2086,162 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
                       .toList(),
                 ),
               ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    Widget buildPickSection({
+      required String title,
+      required String subtitle,
+      required IconData icon,
+      required List<
+        ({
+          String label,
+          String sentiment,
+          List<
+            ({
+              String name,
+              String linkKeyword,
+              String sectorTag,
+              String reason,
+              int sectorScore,
+            })
+          >
+          items,
+        })
+      >
+      rows,
+      required String emptyText,
+    }) {
+      final isBullishSection = title == '강세추천';
+      final accentColor = isBullishSection ? AppColors.green : AppColors.red;
+
+      return Container(
+        width: double.infinity,
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+        decoration: BoxDecoration(
+          color: context.colors.surfaceLight,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: context.colors.border),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    color: accentColor.withValues(alpha: 0.10),
+                    borderRadius: BorderRadius.circular(9),
+                  ),
+                  child: Icon(icon, size: 14, color: accentColor),
+                ),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: TextStyle(
+                          color: context.colors.textPrimary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        style: TextStyle(
+                          color: context.colors.textSecondary,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: context.colors.surface,
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(color: context.colors.border),
+                  ),
+                  child: Text(
+                    '${rows.length}개 시장',
+                    style: TextStyle(
+                      color: context.colors.textSecondary,
+                      fontSize: 9,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
             ),
+            const SizedBox(height: 10),
+            if (rows.isEmpty)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 12,
+                ),
+                decoration: BoxDecoration(
+                  color: context.colors.surface,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: context.colors.border),
+                ),
+                child: Text(
+                  emptyText,
+                  style: TextStyle(
+                    color: context.colors.textSecondary,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              )
+            else
+              ...List.generate(
+                rows.length,
+                (i) => buildPickRow(rows[i], i == rows.length - 1),
+              ),
           ],
         ),
       );
     }
+
+    final bullishRows = displayPickRows
+        .where((row) => row.sentiment == '강세추천')
+        .toList();
+    final bearishRows = displayPickRows
+        .where((row) => row.sentiment == '약세주의')
+        .toList();
+    final activeRows = _showBullishAiPicks ? bullishRows : bearishRows;
+    final activeTitle = _showBullishAiPicks ? '강세추천' : '약세주의';
+    final activeSubtitle = _showBullishAiPicks
+        ? (selectedSector == null ? '상승 모멘텀 중심 종목' : '선택한 강세 섹터와 연결된 종목')
+        : (selectedSector == null ? '회피 또는 하락 압력 점검 종목' : '선택한 약세 섹터와 연결된 종목');
+    final activeEmptyText = _showBullishAiPicks
+        ? (selectedSector == null
+              ? '강세추천 종목이 없습니다.'
+              : '선택한 섹터와 맞는 강세추천 종목이 없습니다.')
+        : (selectedSector == null
+              ? '약세주의 종목이 없습니다.'
+              : '선택한 섹터와 맞는 약세주의 종목이 없습니다.');
+    final activeIcon = _showBullishAiPicks
+        ? Icons.north_east_rounded
+        : Icons.south_east_rounded;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1789,11 +2359,15 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
         if (sectorLines.isNotEmpty) ...[
           Divider(height: 10, thickness: 0.5, color: context.colors.border),
           const SizedBox(height: 1),
-          const Row(
+          Row(
             children: [
-              Icon(Icons.grid_view_rounded, size: 10, color: AppColors.accent),
-              SizedBox(width: 4),
-              Text(
+              const Icon(
+                Icons.grid_view_rounded,
+                size: 10,
+                color: AppColors.accent,
+              ),
+              const SizedBox(width: 4),
+              const Text(
                 '주목 섹터',
                 style: TextStyle(
                   color: AppColors.accent,
@@ -1801,6 +2375,23 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
                   fontWeight: FontWeight.w700,
                 ),
               ),
+              if (selectedSector != null) ...[
+                const SizedBox(width: 6),
+                GestureDetector(
+                  onTap: () => setState(() {
+                    _selectedAiSector = null;
+                    _selectedAiSectorIsBull = null;
+                  }),
+                  child: Text(
+                    '전체 보기',
+                    style: TextStyle(
+                      color: context.colors.textSecondary,
+                      fontSize: 9,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
           const SizedBox(height: 5),
@@ -1811,11 +2402,11 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
         if (pickLines.isNotEmpty) ...[
           Divider(height: 10, thickness: 0.5, color: context.colors.border),
           const SizedBox(height: 1),
-          const Row(
+          Row(
             children: [
-              Icon(Icons.star_rounded, size: 10, color: AppColors.accent),
-              SizedBox(width: 4),
-              Text(
+              const Icon(Icons.star_rounded, size: 10, color: AppColors.accent),
+              const SizedBox(width: 4),
+              const Text(
                 '추천 종목',
                 style: TextStyle(
                   color: AppColors.accent,
@@ -1823,16 +2414,135 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
                   fontWeight: FontWeight.w700,
                 ),
               ),
+              if (selectedSector != null) ...[
+                const SizedBox(width: 6),
+                Text(
+                  '${selectedSectorIsBull == true ? '강세' : '약세'} · $selectedSector',
+                  style: TextStyle(
+                    color: context.colors.textSecondary,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
             ],
           ),
           const SizedBox(height: 6),
-          ...List.generate(
-            pickLines.length,
-            (i) => buildPickRow(pickLines[i], i == pickLines.length - 1),
+          if (selectedSector != null && !hasSectorFilteredPicks)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Text(
+                '선택한 섹터와 직접 연결된 추천 종목이 없습니다.',
+                style: TextStyle(
+                  color: context.colors.textSecondary,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          const SizedBox(height: 2),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              color: context.colors.surfaceLight,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: context.colors.border),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: _buildPickToggleTab(
+                    label: '강세추천',
+                    isSelected: _showBullishAiPicks,
+                    onTap: () => setState(() => _showBullishAiPicks = true),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: _buildPickToggleTab(
+                    label: '약세주의',
+                    isSelected: !_showBullishAiPicks,
+                    onTap: () => setState(() => _showBullishAiPicks = false),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          if (!_showBullishAiPicks && bearishRows.isEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text(
+                '약세주의가 비어 있으면 AI가 악재 연결을 약하게 본 경우가 많아요. 새로고침하면 다시 계산합니다.',
+                style: TextStyle(
+                  color: context.colors.textSecondary,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w500,
+                  height: 1.4,
+                ),
+              ),
+            ),
+          buildPickSection(
+            title: activeTitle,
+            subtitle: activeSubtitle,
+            icon: activeIcon,
+            rows: activeRows,
+            emptyText: activeEmptyText,
           ),
         ],
       ],
     );
+  }
+
+  Widget _buildPickToggleTab({
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeInOut,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected ? context.colors.surface : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ]
+              : null,
+        ),
+        child: Text(
+          label,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: isSelected
+                ? context.colors.textPrimary
+                : context.colors.textSecondary,
+            fontSize: 11,
+            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+            letterSpacing: -0.2,
+          ),
+        ),
+      ),
+    );
+  }
+
+  bool _isValidAiPickToken(String value) {
+    final normalized = value.trim();
+    if (normalized.isEmpty) return false;
+    return normalized != '-' &&
+        normalized != '없음' &&
+        normalized != '없음.' &&
+        normalized != '해당 없음' &&
+        normalized != '미제공';
   }
 
   // ── 마켓 인덱스 가로 스크롤 ────────────────────
@@ -1852,18 +2562,18 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
   // ── 탭 바 ──────────────────────────────────────
   Widget _buildTabBar() {
     const tabDefs = [
-      (0, '속보', AppColors.green, Icons.campaign_rounded),
-      (1, '키워드', AppColors.info, Icons.sell_rounded),
-      (2, '전쟁', AppColors.red, Icons.public_rounded),
-      (3, '코스피', Color(0xFF3B82F6), Icons.trending_up_rounded),
-      (4, '코스닥', Color(0xFF14B8A6), Icons.show_chart_rounded),
-      (5, '나스닥', Color(0xFFF59E0B), Icons.bar_chart_rounded),
-      (6, '코인', Color(0xFFF7931A), Icons.currency_bitcoin_rounded),
+      (0, '속보', AppColors.green, 'LIVE'),
+      (1, '키워드', AppColors.info, 'MY'),
+      (2, '전쟁', AppColors.red, null),
+      (3, '코스피', Color(0xFF3B82F6), null),
+      (4, '코스닥', Color(0xFF14B8A6), null),
+      (5, '나스닥', Color(0xFFF59E0B), null),
+      (6, '코인', Color(0xFFF7931A), null),
     ];
 
     return Container(
       color: context.colors.bg,
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 10),
+      padding: const EdgeInsets.fromLTRB(16, 6, 16, 12),
       child: AnimatedBuilder(
         animation: _tabController!,
         builder: (context, _) {
@@ -1888,49 +2598,34 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
     );
   }
 
-  Widget _buildPillTab(int index, String label, Color color, IconData icon) {
+  Widget _buildPillTab(int index, String label, Color color, String? badge) {
     final isSelected = _tabController!.index == index;
     final foregroundColor = isSelected
-        ? Colors.white
-        : Color.alphaBlend(
-            color.withValues(alpha: 0.82),
-            context.colors.textPrimary,
-          );
+        ? context.colors.textPrimary
+        : context.colors.textSecondary;
 
     return GestureDetector(
       onTap: () => _tabController!.animateTo(index),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         curve: Curves.easeInOut,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
         decoration: BoxDecoration(
-          gradient: isSelected
-              ? LinearGradient(
-                  colors: [
-                    Color.alphaBlend(
-                      Colors.white.withValues(alpha: 0.12),
-                      color,
-                    ),
-                    color,
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                )
-              : null,
-          color: isSelected ? null : context.colors.surface,
-          borderRadius: BorderRadius.circular(22),
+          color: isSelected
+              ? color.withValues(alpha: 0.08)
+              : context.colors.surface,
+          borderRadius: BorderRadius.circular(18),
           border: Border.all(
             color: isSelected
-                ? color.withValues(alpha: 0.95)
-                : color.withValues(alpha: 0.22),
-            width: isSelected ? 1.1 : 1,
+                ? color.withValues(alpha: 0.34)
+                : context.colors.border,
           ),
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: color.withValues(alpha: 0.24),
-                    blurRadius: 18,
-                    offset: const Offset(0, 8),
+                    color: color.withValues(alpha: 0.10),
+                    blurRadius: 16,
+                    offset: const Offset(0, 6),
                   ),
                 ]
               : null,
@@ -1938,17 +2633,46 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 14, color: foregroundColor),
-            const SizedBox(width: 7),
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              width: 6,
+              height: 6,
+              decoration: BoxDecoration(
+                color: isSelected ? color : color.withValues(alpha: 0.45),
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: 8),
             Text(
               label,
               style: TextStyle(
                 color: foregroundColor,
                 fontSize: 12,
-                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                letterSpacing: -0.2,
+                fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                letterSpacing: -0.3,
               ),
             ),
+            if (badge != null) ...[
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? color.withValues(alpha: 0.14)
+                      : context.colors.surfaceLight,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  badge,
+                  style: TextStyle(
+                    color: isSelected ? color : context.colors.textSecondary,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.4,
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -2038,45 +2762,73 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
   Widget _buildBreakingHeader() {
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 12, 16, 10),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            AppColors.green.withValues(alpha: 0.13),
-            AppColors.green.withValues(alpha: 0.03),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColors.green.withValues(alpha: 0.22)),
+        color: context.colors.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: context.colors.border),
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const _FinanceLiveIndicator(isSelected: true),
-          const SizedBox(width: 8),
-          const Text(
-            '실시간 속보',
-            style: TextStyle(
-              color: AppColors.green,
-              fontSize: 14,
-              fontWeight: FontWeight.w800,
-              letterSpacing: -0.3,
-            ),
-          ),
-          const Spacer(),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            width: 34,
+            height: 34,
             decoration: BoxDecoration(
-              color: AppColors.green,
-              borderRadius: BorderRadius.circular(4),
+              color: AppColors.green.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(10),
             ),
-            child: const Text(
-              'LIVE',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 10,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 1.5,
-              ),
+            child: const Center(child: _FinanceLiveIndicator(isSelected: true)),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      '속보',
+                      style: TextStyle(
+                        color: context.colors.textPrimary,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.green.withValues(alpha: 0.10),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: const Text(
+                        'LIVE',
+                        style: TextStyle(
+                          color: AppColors.green,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.8,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  '중요도 높은 기사만 먼저 정리해 보여줘요',
+                  style: TextStyle(
+                    color: context.colors.textSecondary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                    letterSpacing: -0.2,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -3710,92 +4462,84 @@ class _FinanceKeywordTabState extends ConsumerState<_FinanceKeywordTab> {
       slivers: [
         // 키워드 칩 가로 스크롤
         SliverToBoxAdapter(
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
-            child: Row(
-              children: [
-                // '전체' 칩
-                Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: GestureDetector(
-                    onTap: () => setState(() => _selectedKeyword = null),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 160),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                child: Row(
+                  children: [
+                    Text(
+                      _selectedKeyword ?? '맞춤 키워드',
+                      style: TextStyle(
+                        color: context.colors.textPrimary,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.4,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 7,
+                        horizontal: 7,
+                        vertical: 3,
                       ),
                       decoration: BoxDecoration(
-                        color: _selectedKeyword == null
-                            ? AppColors.accent
-                            : context.colors.surface,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: _selectedKeyword == null
-                              ? AppColors.accent
-                              : context.colors.border,
-                          width: _selectedKeyword == null ? 1.5 : 1.0,
-                        ),
+                        color: context.colors.surfaceLight,
+                        borderRadius: BorderRadius.circular(999),
                       ),
                       child: Text(
-                        '전체',
+                        _selectedKeyword == null
+                            ? '${keywords.length}개'
+                            : '필터 적용',
                         style: TextStyle(
-                          color: _selectedKeyword == null
-                              ? Colors.white
-                              : context.colors.textPrimary,
-                          fontSize: 13,
-                          fontWeight: _selectedKeyword == null
-                              ? FontWeight.w700
-                              : FontWeight.w500,
+                          color: context.colors.textSecondary,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.2,
                         ),
                       ),
                     ),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                child: Text(
+                  '노이즈를 줄이고 보고 싶은 키워드만 골라보세요',
+                  style: TextStyle(
+                    color: context.colors.textSecondary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                    letterSpacing: -0.2,
                   ),
                 ),
-                // 개별 키워드 칩
-                ...keywords.map((kw) {
-                  final isSelected = _selectedKeyword == kw;
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: GestureDetector(
-                      onTap: () => setState(() => _selectedKeyword = kw),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 160),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 7,
-                        ),
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? AppColors.accent
-                              : context.colors.surface,
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: isSelected
-                                ? AppColors.accent
-                                : context.colors.border,
-                            width: isSelected ? 1.5 : 1.0,
-                          ),
-                        ),
-                        child: Text(
-                          kw,
-                          style: TextStyle(
-                            color: isSelected
-                                ? Colors.white
-                                : context.colors.textPrimary,
-                            fontSize: 13,
-                            fontWeight: isSelected
-                                ? FontWeight.w700
-                                : FontWeight.w500,
-                          ),
-                        ),
-                      ),
+              ),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                child: Row(
+                  children: [
+                    _buildKeywordChip(
+                      label: '전체',
+                      isSelected: _selectedKeyword == null,
+                      onTap: () => setState(() => _selectedKeyword = null),
                     ),
-                  );
-                }),
-              ],
-            ),
+                    ...keywords.map((kw) {
+                      final isSelected = _selectedKeyword == kw;
+                      return Padding(
+                        padding: const EdgeInsets.only(left: 8),
+                        child: _buildKeywordChip(
+                          label: kw,
+                          isSelected: isSelected,
+                          onTap: () => setState(() => _selectedKeyword = kw),
+                        ),
+                      );
+                    }),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
         SliverToBoxAdapter(
@@ -3951,6 +4695,60 @@ class _FinanceKeywordTabState extends ConsumerState<_FinanceKeywordTab> {
               ),
             ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildKeywordChip({
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeInOut,
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? AppColors.accent.withValues(alpha: 0.08)
+              : context.colors.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isSelected
+                ? AppColors.accent.withValues(alpha: 0.30)
+                : context.colors.border,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              width: 6,
+              height: 6,
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? AppColors.accent
+                    : context.colors.textSecondary.withValues(alpha: 0.45),
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected
+                    ? context.colors.textPrimary
+                    : context.colors.textSecondary,
+                fontSize: 12,
+                fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                letterSpacing: -0.2,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -4140,6 +4938,8 @@ class FinanceStatsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final positiveAsync = ref.watch(positiveFinanceNewsProvider);
     final negativeAsync = ref.watch(negativeFinanceNewsProvider);
+    final trendingKeywordsAsync = ref.watch(topTrendingKeywordsProvider);
+    final trendingNewsAsync = ref.watch(newsListProvider);
 
     return Scaffold(
       backgroundColor: context.colors.bg,
@@ -4312,6 +5112,87 @@ class FinanceStatsScreen extends ConsumerWidget {
                           ),
                         ),
                         const SizedBox(height: 16),
+                        const _StatsSectionHeader(label: '트렌딩 키워드'),
+                        const SizedBox(height: 10),
+                        trendingKeywordsAsync.when(
+                          data: (keywords) {
+                            if (keywords.isEmpty) {
+                              return Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 8,
+                                ),
+                                child: Text(
+                                  '트렌딩 키워드가 없습니다',
+                                  style: TextStyle(
+                                    color: context.colors.textSecondary,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              );
+                            }
+
+                            final newsList =
+                                trendingNewsAsync.valueOrNull ?? const <News>[];
+
+                            return SizedBox(
+                              height: 112,
+                              child: ListView.separated(
+                                scrollDirection: Axis.horizontal,
+                                itemCount: keywords.take(8).length,
+                                separatorBuilder: (_, __) =>
+                                    const SizedBox(width: 8),
+                                itemBuilder: (context, index) {
+                                  final keyword = keywords[index];
+                                  return _StatsTrendingKeywordCard(
+                                    keyword: keyword,
+                                    onTap: () {
+                                      final relatedNews =
+                                          _filterTrendingKeywordNews(
+                                            keyword: keyword,
+                                            newsList: newsList,
+                                          );
+                                      _showStatsTrendingKeywordNewsSheet(
+                                        context,
+                                        keyword: keyword,
+                                        newsList: relatedNews,
+                                      );
+                                    },
+                                  );
+                                },
+                              ),
+                            );
+                          },
+                          loading: () => SizedBox(
+                            height: 112,
+                            child: ListView.separated(
+                              scrollDirection: Axis.horizontal,
+                              itemCount: 4,
+                              separatorBuilder: (_, __) =>
+                                  const SizedBox(width: 8),
+                              itemBuilder: (_, __) => Container(
+                                width: 132,
+                                decoration: BoxDecoration(
+                                  color: context.colors.surface,
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(
+                                    color: context.colors.border,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          error: (e, _) => Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            child: Text(
+                              '트렌딩 키워드를 불러오지 못했어요',
+                              style: TextStyle(
+                                color: context.colors.textSecondary,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
                         const _StatsSectionHeader(
                           label: '강세 뉴스 TOP 3',
                           color: AppColors.green,
@@ -4400,13 +5281,407 @@ class FinanceStatsScreen extends ConsumerWidget {
   }
 }
 
+List<News> _filterTrendingKeywordNews({
+  required Keyword keyword,
+  required List<News> newsList,
+}) {
+  final normalizedKeyword = keyword.name.toLowerCase().trim();
+
+  final filtered = newsList.where((news) {
+    final keywordMatches = news.keywords.any(
+      (item) => item.toLowerCase().contains(normalizedKeyword),
+    );
+    final corpus = '${news.title} ${news.description} ${news.category}'
+        .toLowerCase();
+    return keywordMatches || corpus.contains(normalizedKeyword);
+  }).toList()..sort((a, b) => b.publishedAt.compareTo(a.publishedAt));
+
+  return filtered;
+}
+
+void _showStatsTrendingKeywordNewsSheet(
+  BuildContext context, {
+  required Keyword keyword,
+  required List<News> newsList,
+}) {
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    backgroundColor: Colors.transparent,
+    builder: (_) =>
+        _StatsTrendingKeywordNewsSheet(keyword: keyword, newsList: newsList),
+  );
+}
+
+class _StatsTrendingKeywordCard extends StatelessWidget {
+  final Keyword keyword;
+  final VoidCallback onTap;
+
+  const _StatsTrendingKeywordCard({required this.keyword, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final changeColor = keyword.changeRate >= 0
+        ? AppColors.green
+        : AppColors.red;
+    final changeText =
+        '${keyword.changeRate > 0 ? '+' : ''}${keyword.changeRate.toStringAsFixed(1)}%';
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Ink(
+          width: 140,
+          padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+          decoration: BoxDecoration(
+            color: context.colors.surface,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: context.colors.border),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: changeColor.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(9),
+                ),
+                child: Icon(
+                  keyword.changeRate >= 0
+                      ? Icons.north_east_rounded
+                      : Icons.south_east_rounded,
+                  size: 14,
+                  color: changeColor,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                keyword.name,
+                style: TextStyle(
+                  color: context.colors.textPrimary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.2,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '${keyword.mentionCount}회 언급',
+                style: TextStyle(
+                  color: context.colors.textSecondary,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const Spacer(),
+              Row(
+                children: [
+                  Text(
+                    changeText,
+                    style: TextStyle(
+                      color: changeColor,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    '뉴스 보기',
+                    style: TextStyle(
+                      color: context.colors.textSecondary,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _StatsTrendingKeywordNewsSheet extends StatelessWidget {
+  final Keyword keyword;
+  final List<News> newsList;
+
+  const _StatsTrendingKeywordNewsSheet({
+    required this.keyword,
+    required this.newsList,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final changeColor = keyword.changeRate >= 0
+        ? AppColors.green
+        : AppColors.red;
+    final changeText =
+        '${keyword.changeRate > 0 ? '+' : ''}${keyword.changeRate.toStringAsFixed(1)}%';
+
+    return DraggableScrollableSheet(
+      initialChildSize: 0.72,
+      minChildSize: 0.4,
+      maxChildSize: 0.95,
+      expand: false,
+      builder: (context, scrollController) {
+        return Container(
+          decoration: BoxDecoration(
+            color: context.colors.surface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            children: [
+              Container(
+                margin: const EdgeInsets.symmetric(vertical: 10),
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: context.colors.border,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            keyword.name,
+                            style: TextStyle(
+                              color: context.colors.textPrimary,
+                              fontSize: 20,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.5,
+                            ),
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: changeColor.withValues(alpha: 0.10),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            changeText,
+                            style: TextStyle(
+                              color: changeColor,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _StatsKeywordMetaChip(
+                          label: '${keyword.mentionCount}회 언급',
+                        ),
+                        if (keyword.category.trim().isNotEmpty)
+                          _StatsKeywordMetaChip(label: keyword.category),
+                        _StatsKeywordMetaChip(
+                          label: '관련 뉴스 ${newsList.length}건',
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      '이 키워드가 포함된 기사만 모아봤어요',
+                      style: TextStyle(
+                        color: context.colors.textSecondary,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Divider(height: 1, color: context.colors.border),
+              Expanded(
+                child: newsList.isEmpty
+                    ? Center(
+                        child: Text(
+                          '직접 연결된 뉴스가 아직 없습니다',
+                          style: TextStyle(
+                            color: context.colors.textSecondary,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      )
+                    : ListView.separated(
+                        controller: scrollController,
+                        padding: EdgeInsets.fromLTRB(
+                          16,
+                          12,
+                          16,
+                          MediaQuery.of(context).padding.bottom + 16,
+                        ),
+                        itemCount: newsList.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 8),
+                        itemBuilder: (context, index) {
+                          final news = newsList[index];
+                          final sentimentColor = news.sentimentScore > 0.1
+                              ? AppColors.green
+                              : news.sentimentScore < -0.1
+                              ? AppColors.red
+                              : context.colors.textSecondary;
+
+                          return GestureDetector(
+                            onTap: () => showNewsDetailSheet(
+                              context,
+                              news,
+                              contextLabel: '통계 · 트렌딩 키워드 · ${keyword.name}',
+                            ),
+                            child: Container(
+                              padding: const EdgeInsets.fromLTRB(
+                                12,
+                                12,
+                                12,
+                                12,
+                              ),
+                              decoration: BoxDecoration(
+                                color: context.colors.surfaceLight,
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(
+                                  color: context.colors.border,
+                                ),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          news.source,
+                                          style: TextStyle(
+                                            color: context.colors.textSecondary,
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Container(
+                                        width: 6,
+                                        height: 6,
+                                        decoration: BoxDecoration(
+                                          color: sentimentColor,
+                                          shape: BoxShape.circle,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        _timeAgo(news.publishedAt),
+                                        style: TextStyle(
+                                          color: context.colors.textSecondary,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    news.title,
+                                    style: TextStyle(
+                                      color: context.colors.textPrimary,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w700,
+                                      height: 1.4,
+                                    ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  if (news.description.isNotEmpty) ...[
+                                    const SizedBox(height: 5),
+                                    Text(
+                                      news.description,
+                                      style: TextStyle(
+                                        color: context.colors.textSecondary,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w500,
+                                        height: 1.35,
+                                      ),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  static String _timeAgo(DateTime dt) {
+    final diff = DateTime.now().difference(dt);
+    if (diff.inMinutes < 60) return '${diff.inMinutes}분 전';
+    if (diff.inHours < 24) return '${diff.inHours}시간 전';
+    return '${diff.inDays}일 전';
+  }
+}
+
+class _StatsKeywordMetaChip extends StatelessWidget {
+  final String label;
+
+  const _StatsKeywordMetaChip({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: context.colors.surfaceLight,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: context.colors.textSecondary,
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
 // ─────────────────────────────────────────────
 // AI 관련 뉴스 바텀시트
 // ─────────────────────────────────────────────
 class _AiRelatedNewsSheet extends StatelessWidget {
   final List<FinanceNews> newsList;
+  final String? titleSuffix;
 
-  const _AiRelatedNewsSheet({required this.newsList});
+  const _AiRelatedNewsSheet({required this.newsList, this.titleSuffix});
 
   @override
   Widget build(BuildContext context) {
@@ -4445,7 +5720,9 @@ class _AiRelatedNewsSheet extends StatelessWidget {
                     ),
                     const SizedBox(width: 6),
                     Text(
-                      'AI 요약 관련 뉴스',
+                      titleSuffix == null || titleSuffix!.isEmpty
+                          ? 'AI 요약 관련 뉴스'
+                          : 'AI 요약 관련 뉴스 · $titleSuffix',
                       style: TextStyle(
                         color: context.colors.textPrimary,
                         fontSize: 15,

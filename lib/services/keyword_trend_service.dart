@@ -4,11 +4,12 @@ import 'trend_analyzer_service.dart';
 
 /// 키워드 트렌드 계산 서비스
 class KeywordTrendService {
+  static const _trendWindow = Duration(hours: 6);
+
   /// 뉴스 리스트에서 키워드 트렌드 생성
   static List<Keyword> extractKeywordTrends(
     List<News> newsList, {
     int limit = 10,
-    Map<String, int>? previousMentionCounts,
   }) {
     if (newsList.isEmpty) return [];
 
@@ -28,6 +29,7 @@ class KeywordTrendService {
             news.sentimentScore,
             hour,
             dayKey,
+            news.publishedAt,
           );
         } else {
           keywordStats[normalized] = _KeywordStat(
@@ -36,6 +38,7 @@ class KeywordTrendService {
             sentimentScore: news.sentimentScore,
             hour: hour,
             dayKey: dayKey,
+            publishedAt: news.publishedAt,
           );
         }
       }
@@ -44,25 +47,23 @@ class KeywordTrendService {
     // Keyword 모델로 변환
     final keywords = keywordStats.entries.map((entry) {
       final stat = entry.value;
-      final previousCount =
-          previousMentionCounts?[entry.key] ?? stat.mentionCount;
+      final previousCount = stat.previousWindowMentionCount(_trendWindow);
+      final currentCount = stat.currentWindowMentionCount(_trendWindow);
+      final changeRate = TrendAnalyzerService.calculateChangeRate(
+        previousCount,
+        currentCount,
+      );
 
       return Keyword(
         id: entry.key,
         name: entry.key,
         mentionCount: stat.mentionCount,
-        changeRate: TrendAnalyzerService.calculateChangeRate(
-          previousCount,
-          stat.mentionCount,
-        ),
+        changeRate: changeRate,
         relatedRegions: stat.regions.toList(),
         category: stat.category,
         riskLevel: TrendAnalyzerService.calculateRiskLevel(
           stat.averageSentiment,
-          TrendAnalyzerService.calculateChangeRate(
-            previousCount,
-            stat.mentionCount,
-          ),
+          changeRate,
           stat.averageImportance,
         ),
         lastUpdatedAt: DateTime.now(),
@@ -156,6 +157,7 @@ class _KeywordStat {
   String category = '기타';
   final Map<String, int> hourlyMentions = {};
   final Map<String, int> dailyMentions = {};
+  final List<DateTime> mentionTimes = [];
 
   _KeywordStat({
     required this.name,
@@ -163,12 +165,13 @@ class _KeywordStat {
     required double sentimentScore,
     required String hour,
     required String dayKey,
+    required DateTime publishedAt,
   }) {
     totalSentiment = sentimentScore;
     totalImportance = importanceLevel;
-    // 시간 및 일일 데이터 초기화
     hourlyMentions[hour] = 1;
     dailyMentions[dayKey] = 1;
+    mentionTimes.add(publishedAt);
   }
 
   void _incrementMention(
@@ -176,12 +179,45 @@ class _KeywordStat {
     double sentiment,
     String hour,
     String dayKey,
+    DateTime publishedAt,
   ) {
     mentionCount++;
     totalSentiment += sentiment;
     totalImportance += importance;
     hourlyMentions[hour] = (hourlyMentions[hour] ?? 0) + 1;
     dailyMentions[dayKey] = (dailyMentions[dayKey] ?? 0) + 1;
+    mentionTimes.add(publishedAt);
+  }
+
+  int currentWindowMentionCount(Duration window) {
+    final latestMentionAt = _latestMentionAt;
+    final currentWindowStart = latestMentionAt.subtract(window);
+    return mentionTimes
+        .where((time) => !time.isBefore(currentWindowStart))
+        .length;
+  }
+
+  int previousWindowMentionCount(Duration window) {
+    final latestMentionAt = _latestMentionAt;
+    final currentWindowStart = latestMentionAt.subtract(window);
+    final previousWindowStart = currentWindowStart.subtract(window);
+    return mentionTimes
+        .where(
+          (time) =>
+              !time.isBefore(previousWindowStart) &&
+              time.isBefore(currentWindowStart),
+        )
+        .length;
+  }
+
+  DateTime get _latestMentionAt {
+    var latest = mentionTimes.first;
+    for (final time in mentionTimes.skip(1)) {
+      if (time.isAfter(latest)) {
+        latest = time;
+      }
+    }
+    return latest;
   }
 
   double get averageSentiment => totalSentiment / mentionCount;

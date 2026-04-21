@@ -259,9 +259,11 @@ final stockMarketNewsProvider = FutureProvider<List<News>>((ref) async {
 
   // 중복·유사 쿼리를 더 강하게 통합하여 초기 호출 수를 줄인다.
   final baseQueries = [
-    '코스피 코스닥 삼성전자 SK하이닉스 주가 금리',
-    '나스닥 다우 S&P 증시 실적',
+    '코스피 코스닥 나스닥 다우 S&P 증시 금리 환율',
+    '실적 전망 가이던스 수주 계약 투자 증설 자사주 배당 공급계약 수출',
+    '반도체 AI HBM 배터리 전기차 바이오 로봇 방산 조선 원전',
     '트럼프 관세 무역 인플레이션 경기침체 환율 유가 금값 원유 OPEC 중동 이스라엘 이란',
+    '비트코인 이더리움 ETF 규제 유동성 달러 금리 위험자산',
   ];
   // 관심 키워드도 초기 부하를 줄이기 위해 최대 2개만 추가
   final favQueries = favoriteKeywords.take(2).toList();

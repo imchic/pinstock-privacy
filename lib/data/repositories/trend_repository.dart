@@ -39,7 +39,6 @@ class TrendRepository {
     final keywords = app_services.KeywordTrendService.extractKeywordTrends(
       newsList,
       limit: limit,
-      previousMentionCounts: _getPreviousMentionCounts(),
     );
 
     // 캐시에 저장
@@ -95,16 +94,6 @@ class TrendRepository {
     );
 
     return connections.map((c) => c.keyword).toList();
-  }
-
-  /// 이전 언급 횟수 조회 (변동률 계산용)
-  Map<String, int>? _getPreviousMentionCounts() {
-    try {
-      final cachedKeywords = localService.getCachedKeywords();
-      return {for (final kw in cachedKeywords) kw.name: kw.mentionCount};
-    } catch (e) {
-      return null;
-    }
   }
 
   /// 트렌드 저장
